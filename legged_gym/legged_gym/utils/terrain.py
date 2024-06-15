@@ -321,10 +321,26 @@ class Terrain:
             idx = 20
             demo_terrain(terrain)
             self.add_roughness(terrain)
+        
+        elif choice < self.proportions[20]:
+            idx = 21
+            parkour_hurdle_edge_terrain(terrain,
+                                   num_stones=self.num_goals//2-1,
+                                   stone_len=0.1+0.3*difficulty,
+                                   hurdle_height_range=[0.1+0.1*difficulty, 0.15+0.15*difficulty],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   flat=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y
+                                   )
+            self.add_roughness(terrain)
         # np.set_printoptions(precision=2)
         # print(np.array(self.proportions), choice)
         terrain.idx = idx
         return terrain
+
 
     def add_terrain_to_map(self, terrain, row, col):
         i = row
@@ -613,6 +629,137 @@ def parkour_hurdle_terrain(terrain,
             terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, mid_y+rand_y+half_valid_width:] = 0
         last_dis_x = dis_x
         goals[i+1] = [dis_x-rand_x//2, mid_y + rand_y]
+    final_dis_x = dis_x + np.random.randint(dis_x_min, dis_x_max)
+    # import ipdb; ipdb.set_trace()
+    if final_dis_x > terrain.width:
+        final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
+    goals[-1] = [final_dis_x, mid_y]
+    
+    terrain.goals = goals * terrain.horizontal_scale
+    
+    # terrain.height_field_raw[:, :max(mid_y-half_valid_width, 0)] = 0
+    # terrain.height_field_raw[:, min(mid_y+half_valid_width, terrain.height_field_raw.shape[1]):] = 0
+    # terrain.height_field_raw[:, :] = 0
+    # pad edges
+    pad_width = int(pad_width // terrain.horizontal_scale)
+    pad_height = int(pad_height // terrain.vertical_scale)
+    terrain.height_field_raw[:, :pad_width] = pad_height
+    terrain.height_field_raw[:, -pad_width:] = pad_height
+    terrain.height_field_raw[:pad_width, :] = pad_height
+    terrain.height_field_raw[-pad_width:, :] = pad_height
+
+def parkour_hurdle_edge_terrain(terrain,
+                           platform_len=2.5, 
+                           platform_height=0., 
+                           num_stones=8,
+                           stone_len=0.3,
+                           x_range=[1.5, 2.4],
+                           y_range=[-0.4, 0.4],
+                           half_valid_width=[0.4, 0.8],
+                           hurdle_height_range=[0.2, 0.3],
+                           pad_width=0.1,
+                           pad_height=0.5,
+                           measured_points_x=[-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 1.2],
+                           measured_points_y = [-0.75, -0.6, -0.45, -0.3, -0.15, 0., 0.15, 0.3, 0.45, 0.6, 0.75],
+                           flat=False):
+    goals = np.zeros(((num_stones+1)*2, 2))
+    # terrain.height_field_raw[:] = -200
+    
+    mid_y = terrain.length // 2  # length is actually y width
+
+    dis_x_min = round(x_range[0] / terrain.horizontal_scale)
+    dis_x_max = round(x_range[1] / terrain.horizontal_scale)
+    dis_y_min = round(y_range[0] / terrain.horizontal_scale)
+    dis_y_max = round(y_range[1] / terrain.horizontal_scale)
+
+    # half_valid_width = round(np.random.uniform(y_range[1]+0.2, y_range[1]+1) / terrain.horizontal_scale)
+    half_valid_width = round(np.random.uniform(half_valid_width[0], half_valid_width[1]) / terrain.horizontal_scale)
+    hurdle_height_max = round(hurdle_height_range[1] / terrain.vertical_scale)
+    hurdle_height_min = round(hurdle_height_range[0] / terrain.vertical_scale)
+
+    platform_len = round(platform_len / terrain.horizontal_scale)
+    platform_height = round(platform_height / terrain.vertical_scale)
+    terrain.height_field_raw[0:platform_len, :] = platform_height
+
+    stone_len = round(stone_len / terrain.horizontal_scale)
+    # stone_width = round(stone_width / terrain.horizontal_scale)
+    
+    # incline_height = round(incline_height / terrain.vertical_scale)
+    # last_incline_height = round(last_incline_height / terrain.vertical_scale)
+
+    dis_x = platform_len
+    goals[0] = [platform_len - 1, mid_y]
+
+    scenario_sides = np.random.randint(0, 1)
+    # scenario_sides = [0,0,0,1,1,1]
+    move_y_range = round(abs(measured_points_y[-1] - measured_points_y[0])/ terrain.horizontal_scale)
+    scenario_out_range = [[move_y_range, move_y_range/2],[move_y_range/2, move_y_range],[move_y_range/2, move_y_range/2]] # [goal_before, goal after]
+
+    last_dis_x = dis_x
+    rand_x = np.random.randint(dis_x_min, dis_x_max)
+    rand_y = np.random.randint(dis_y_min, dis_y_max)
+    robot_len_half = round(0.3 / terrain.horizontal_scale)
+    for i in range(num_stones):
+
+        if i == 0:
+            x_lower_bound = goals[0][0]
+        else:
+            x_lower_bound = round(abs(dis_x+stone_len//2 + dis_x+rand_x-stone_len//2)/2)
+        
+        dis_x += rand_x
+
+        sides = [mid_y+rand_y-half_valid_width, mid_y+rand_y+half_valid_width]
+        block_x_range =  [dis_x-stone_len//2, dis_x+stone_len//2]
+        # block_y_range =  [mid_y+rand_y-half_valid_width, mid_y+rand_y+half_valid_width]
+        terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, ] = np.random.randint(hurdle_height_min, hurdle_height_max)
+        terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, :mid_y+rand_y-half_valid_width] = 0
+        terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, mid_y+rand_y+half_valid_width:] = 0
+
+        bound = sides[scenario_sides]
+        
+        sign = 1
+        if scenario_sides == 0:
+            sign = -1
+        last_dis_x = dis_x
+        
+        
+
+        rand_x = np.random.randint(dis_x_min, dis_x_max) # next x random  length
+        rand_y = np.random.randint(dis_y_min, dis_y_max) # next y random  length
+
+        
+        x_upper_bound = block_x_range[0] - robot_len_half
+        x_lower_bound_y = bound + round(scenario_out_range[i%len(scenario_out_range)][0])*sign - sign*move_y_range//2
+        x_upper_bound_y = bound - round(scenario_out_range[i%len(scenario_out_range)][0])*sign + sign*move_y_range//2
+        
+        lower_boundx = min(x_lower_bound, x_upper_bound) 
+        upper_boundx = max(x_lower_bound, x_upper_bound)
+        lower_boundy = min(x_lower_bound_y, x_upper_bound_y)
+        upper_boundy = max(x_lower_bound_y, x_upper_bound_y)
+        goal_before_x = np.random.randint(lower_boundx,upper_boundx) 
+        goal_before_y = np.random.uniform(lower_boundy,upper_boundy)
+
+
+        next_block_x_range =  [dis_x+rand_x-stone_len//2, dis_x+rand_x+stone_len//2]
+        goal_lower_bound_x = block_x_range[1] + robot_len_half
+        goal_upper_bound_x = round(abs(block_x_range[1] + next_block_x_range[0])/2)
+
+        goal_lower_bound_y = bound + round(scenario_out_range[i%len(scenario_out_range)][1])*sign - sign*move_y_range/2
+        goal_upper_bound_y = bound - round(scenario_out_range[i%len(scenario_out_range)][1])*sign + sign*move_y_range/2
+
+        lower_boundx = min(goal_lower_bound_x, goal_upper_bound_x)
+        upper_boundx = max(goal_lower_bound_x, goal_upper_bound_x)
+        lower_boundy = min(goal_lower_bound_y, goal_upper_bound_y)
+        upper_boundy = max(goal_lower_bound_y, goal_upper_bound_y)
+        goal_after_x = np.random.randint(lower_boundx,upper_boundx) 
+        # import ipdb; ipdb.set_trace()
+
+        goal_after_y = np.random.uniform(lower_boundy,upper_boundy)
+        goals[i*2+1] = [goal_before_x, goal_before_y]#[goal_before_x, goal_before_y]
+        goals[i*2+2] = [goal_after_x, goal_after_y]
+        # import ipdb; ipdb.set_trace()
+        
+    # import ipdb; ipdb.set_trace()
     final_dis_x = dis_x + np.random.randint(dis_x_min, dis_x_max)
     # import ipdb; ipdb.set_trace()
     if final_dis_x > terrain.width:

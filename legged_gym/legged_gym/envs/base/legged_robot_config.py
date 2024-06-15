@@ -184,19 +184,20 @@ class LeggedRobotCfg(BaseConfig):
                         "platform": 0.,
                         "large stairs up": 0.,
                         "large stairs down": 0.,
-                        "parkour": 0.2,
+                        "parkour": 0.0,
                         "parkour_hurdle": 0.2,
                         "parkour_flat": 0.2,
-                        "parkour_step": 0.2,
+                        "parkour_step": 0.0,
                         "parkour_gap": 0.2,
-                        "demo": 0.0,}
+                        "demo": 0.0,
+                        "parkour_hurdle_edge": 0.2,}
         terrain_proportions = list(terrain_dict.values())
         
         # trimesh only:
         slope_treshold = 1.5# slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals = 8
+        num_goals =14
 
     class commands:
         curriculum = False
@@ -408,7 +409,7 @@ class LeggedRobotCfgPPO(BaseConfig):
 
         # logging
         save_interval = 100 # check for potential saves every this many iterations
-        experiment_name = 'rough_a1'
+        experiment_name = 'rough_go1'
         run_name = ''
         # load and resume
         resume = False

@@ -72,18 +72,18 @@ class Go1RoughCfg( LeggedRobotCfg ):
     class control( LeggedRobotCfg.control ):
         # PD Drive parameters:
         control_type = 'P'
-        # stiffness = {'joint': 40.}  # [N*m/rad]
-        # damping = {'joint': 0.5}     # [N*m*s/rad]
-        stiffness = {'joint': 30.}  # [N*m/rad]
-        damping = {'joint': 0.6}     # [N*m*s/rad]
+        stiffness = {'joint': 40.}  # [N*m/rad] changed from 30 to 40 
+        damping = {'joint': 1.0}     # [N*m*s/rad] // was 0.5, now is 1
+        # stiffness = {'joint': 30.}  # [N*m/rad]
+        # damping = {'joint': 0.6}     # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.25
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 4
 
     class asset( LeggedRobotCfg.asset ):
-        # file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_new.urdf'
-        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/a1/urdf/a1.urdf'
+        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_v_1_4.urdf'
+        # file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/a1/urdf/a1.urdf'
         foot_name = "foot"
         penalize_contacts_on = ["thigh", "calf"]
         terminate_after_contacts_on = ["base"]#, "thigh", "calf"]
@@ -101,6 +101,6 @@ class Go1RoughCfgPPO( LeggedRobotCfgPPO ):
         entropy_coef = 0.01
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
-        experiment_name = 'rough_a1'
+        experiment_name = 'rough_go1'
 
   
