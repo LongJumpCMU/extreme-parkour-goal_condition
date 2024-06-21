@@ -43,7 +43,7 @@ class LeggedRobotCfg(BaseConfig):
         n_scan = 132
         n_priv = 3+3 +3
         n_priv_latent = 4 + 1 + 12 +12
-        n_proprio = 3 + 2 + 3 + 4 + 36 + 5 + 1 # added planner goal distance as the extra dimension at the end of the obs_buf
+        n_proprio = 3 + 2 + 3 + 4 + 36 + 5 + 2 # added planner goal distance as the extra dimension at the end of the obs_buf
         history_len = 10
 
         num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent + n_priv #n_scan + n_proprio + n_priv #187 + 47 + 5 + 12 
@@ -295,7 +295,7 @@ class LeggedRobotCfg(BaseConfig):
         class scales:
             # tracking rewards
             tracking_goal_vel = 1.5
-            tracking_yaw = 0.25 # 0.5 original
+            tracking_yaw = 0.125 # 0.5 original
             # regularization rewards
             lin_vel_z =-1.0
             ang_vel_x = -0.05

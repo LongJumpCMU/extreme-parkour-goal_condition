@@ -694,7 +694,8 @@ def parkour_hurdle_edge_terrain(terrain,
     dis_x = platform_len
     goals[0] = [platform_len - 1, mid_y]
 
-    scenario_sides = np.random.randint(0, 1)
+    
+    scenario_sides = np.random.randint(0, 2)
     # scenario_sides = [0,0,0,1,1,1]
     move_y_range = round(abs(measured_points_y[-1] - measured_points_y[0])/ terrain.horizontal_scale)
     scenario_out_range = [[move_y_range, move_y_range/2],[move_y_range/2, move_y_range],[move_y_range/2, move_y_range/2]] # [goal_before, goal after]

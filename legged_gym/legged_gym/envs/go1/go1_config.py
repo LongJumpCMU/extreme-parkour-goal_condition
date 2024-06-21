@@ -73,7 +73,7 @@ class Go1RoughCfg( LeggedRobotCfg ):
         # PD Drive parameters:
         control_type = 'P'
         stiffness = {'joint': 40.}  # [N*m/rad] changed from 30 to 40 
-        damping = {'joint': 1.0}     # [N*m*s/rad] // was 0.5, now is 1
+        damping = {'joint': 0.5}     # [N*m*s/rad] // was 0.5, now is 1
         # stiffness = {'joint': 30.}  # [N*m/rad]
         # damping = {'joint': 0.6}     # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
@@ -85,7 +85,7 @@ class Go1RoughCfg( LeggedRobotCfg ):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_v_1_4.urdf'
         # file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/a1/urdf/a1.urdf'
         foot_name = "foot"
-        penalize_contacts_on = ["thigh", "calf"]
+        penalize_contacts_on = ["thigh", "calf"] # used to not have base
         terminate_after_contacts_on = ["base"]#, "thigh", "calf"]
         self_collisions = 1 # 1 to disable, 0 to enable...bitwise filter
   
