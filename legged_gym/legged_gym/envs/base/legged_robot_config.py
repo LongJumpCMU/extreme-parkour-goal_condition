@@ -43,7 +43,7 @@ class LeggedRobotCfg(BaseConfig):
         n_scan = 132
         n_priv = 3+3 +3
         n_priv_latent = 4 + 1 + 12 +12
-        n_proprio = 3 + 2 + 3 + 4 + 36 + 5
+        n_proprio = 3 + 2 + 3 + 4 + 36 + 5 + 1 # added planner goal distance as the extra dimension at the end of the obs_buf
         history_len = 10
 
         num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent + n_priv #n_scan + n_proprio + n_priv #187 + 47 + 5 + 12 
@@ -188,7 +188,7 @@ class LeggedRobotCfg(BaseConfig):
                         "parkour_hurdle": 0.2,
                         "parkour_flat": 0.2,
                         "parkour_step": 0.0,
-                        "parkour_gap": 0.2,
+                        "parkour_gap": 0.0,
                         "demo": 0.0,
                         "parkour_hurdle_edge": 0.2,}
         terrain_proportions = list(terrain_dict.values())
@@ -295,13 +295,14 @@ class LeggedRobotCfg(BaseConfig):
         class scales:
             # tracking rewards
             tracking_goal_vel = 1.5
-            tracking_yaw = 0.5
+            tracking_yaw = 0.25 # 0.5 original
             # regularization rewards
-            lin_vel_z = -1.0
-            ang_vel_xy = -0.05
+            lin_vel_z =-1.0
+            ang_vel_x = -0.05
+            ang_vel_y = -0.025 # was -0.05 originally
             orientation = -1.
             dof_acc = -2.5e-7
-            collision = -10.
+            collision = -30 #-10. originally
             action_rate = -0.1
             delta_torques = -1.0e-7
             torques = -0.00001
@@ -309,6 +310,7 @@ class LeggedRobotCfg(BaseConfig):
             dof_error = -0.04
             feet_stumble = -1
             feet_edge = -1
+            reach_planner_goals = 50
             
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.2 # tracking reward = exp(-error^2/sigma)

@@ -57,6 +57,7 @@ class Terrain:
         self.terrain_type = np.zeros((cfg.num_rows, cfg.num_cols))
         # self.env_slope_vec = np.zeros((cfg.num_rows, cfg.num_cols, 3))
         self.goals = np.zeros((cfg.num_rows, cfg.num_cols, cfg.num_goals, 3))
+        self.planner_goals = np.zeros((cfg.num_rows, cfg.num_cols, cfg.num_goals))
         self.num_goals = cfg.num_goals
 
         self.width_per_env_pixels = int(self.env_width / cfg.horizontal_scale)
@@ -366,6 +367,7 @@ class Terrain:
         self.env_origins[i, j] = [env_origin_x, env_origin_y, env_origin_z]
         self.terrain_type[i, j] = terrain.idx
         self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width]
+        self.planner_goals[i, j, :] = terrain.planner_goals
         # self.env_slope_vec[i, j] = terrain.slope_vector
 
 def gap_terrain(terrain, gap_size, platform_size=1.):
@@ -637,6 +639,8 @@ def parkour_hurdle_terrain(terrain,
     
     terrain.goals = goals * terrain.horizontal_scale
     
+    terrain.planner_goals = np.ones(terrain.goals.shape[0])
+    
     # terrain.height_field_raw[:, :max(mid_y-half_valid_width, 0)] = 0
     # terrain.height_field_raw[:, min(mid_y+half_valid_width, terrain.height_field_raw.shape[1]):] = 0
     # terrain.height_field_raw[:, :] = 0
@@ -767,6 +771,9 @@ def parkour_hurdle_edge_terrain(terrain,
     goals[-1] = [final_dis_x, mid_y]
     
     terrain.goals = goals * terrain.horizontal_scale
+    # planner goals indicated by one hot encoding, means it doesn't have looking ahead when it is the next point
+
+    terrain.planner_goals = np.ones(terrain.goals.shape[0])
     
     # terrain.height_field_raw[:, :max(mid_y-half_valid_width, 0)] = 0
     # terrain.height_field_raw[:, min(mid_y+half_valid_width, terrain.height_field_raw.shape[1]):] = 0

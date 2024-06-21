@@ -90,6 +90,7 @@ class LeggedRobot(BaseTask):
             headless (bool): Run without rendering if True
         """
         self.cfg = cfg
+        
         self.sim_params = sim_params
         self.height_samples = None
         self.debug_viz = True
@@ -109,6 +110,7 @@ class LeggedRobot(BaseTask):
         self.total_env_steps_counter = 0
 
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
+        self.planner_goal_reached = torch.zeros(self.num_envs)
         self.post_physics_step()
 
     def step(self, actions):
@@ -209,6 +211,12 @@ class LeggedRobot(BaseTask):
         self.reach_goal_timer[next_flag] = 0
 
         self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold
+        # check if this is a planner goal, if it is then set it to smth else
+        try:
+            self.planner_goal_reached = self.reached_goal_ids*self.env_planner_goals[torch.arange(self.num_envs),self.cur_goal_idx]
+        except:
+            import ipdb; ipdb.set_trace()
+
         self.reach_goal_timer[self.reached_goal_ids] += 1
 
         self.target_pos_rel = self.cur_goals[:, :2] - self.root_states[:, :2]
@@ -380,14 +388,27 @@ class LeggedRobot(BaseTask):
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
     
+    def compute_yaw(self, cur_goals, root_states):
+        target_pos_rel = cur_goals[:, :2] - root_states[:, :2]
+
+        norm = torch.norm(target_pos_rel, dim=-1, keepdim=True)
+        target_vec_norm = target_pos_rel / (norm + 1e-5)
+        target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
+        return target_yaw
     def compute_observations(self):
         """ 
         Computes observations
         """
         imu_obs = torch.stack((self.roll, self.pitch), dim=1)
+        
         if self.global_counter % 5 == 0:
             self.delta_yaw = self.target_yaw - self.yaw
             self.delta_next_yaw = self.next_target_yaw - self.yaw
+            cur_pos = self.root_states[:, :3]
+            next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+            planner_yaw =  self.compute_yaw(next_planner_goal, self.root_states)
+            self.planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
+        # import ipdb; ipdb.set_trace()
         obs_buf = torch.cat((#skill_vector, 
                             self.base_ang_vel  * self.obs_scales.ang_vel,   #[1,3]
                             imu_obs,    #[1,2]
@@ -402,6 +423,7 @@ class LeggedRobot(BaseTask):
                             self.reindex(self.dof_vel * self.obs_scales.dof_vel),
                             self.reindex(self.action_history_buf[:, -1]),
                             self.reindex_feet(self.contact_filt.float()-0.5),
+                            self.planner_goal_heu.reshape((self.num_envs,1)),
                             ),dim=-1)
         priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
                                    0 * self.base_lin_vel,
@@ -563,9 +585,36 @@ class LeggedRobot(BaseTask):
                 self.measured_heights = self._get_heights()
         if self.cfg.domain_rand.push_robots and  (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
             self._push_robots()
+    
+    def get_next_planner_goal(self, given_col_idx, planner_goals):
+        planner_goal_cpu = planner_goals.cpu()
+        mask = np.zeros_like(planner_goal_cpu, dtype=bool)
         
+        mask_idx = given_col_idx.to(torch.int)
+        range_tensor = torch.arange(mask.shape[1]).unsqueeze(0).expand(self.num_envs, -1)
+        mask[range_tensor > mask_idx.unsqueeze(1).cpu()] = True
+        filtered_tensor = np.where(mask, planner_goal_cpu, 0)
+        result = np.argmax(filtered_tensor == 1, axis=1)
+
+        # Check if no 1 was found in the filtered part, set those results to -1
+        result[np.all(filtered_tensor == 0, axis=1)] = -1
+
+        # import ipdb; ipdb.set_trace()
+        result = torch.tensor(result).to("cuda")
+        return self.env_goals.gather(1, (result[:, None, None]).expand(-1, -1, self.env_goals.shape[-1])).squeeze(1)
+    
+    def get_planner_goal_heuristic_obs(self, curr_pos, next_pos):
+        # import ipdb; ipdb.set_trace()
+        return torch.norm((curr_pos-next_pos), p=2, dim=1)
+    
+    
     def _gather_cur_goals(self, future=0):
-        return self.env_goals.gather(1, (self.cur_goal_idx[:, None, None]+future).expand(-1, -1, self.env_goals.shape[-1])).squeeze(1)
+        if future == 1:
+            future_planner_goals = 1 - self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx]
+            future_planner_goals = future_planner_goals[:, None, None].int()
+        else:
+            future_planner_goals = 0
+        return self.env_goals.gather(1, (self.cur_goal_idx[:, None, None]+future_planner_goals).expand(-1, -1, self.env_goals.shape[-1])).squeeze(1)
 
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments
@@ -690,8 +739,11 @@ class LeggedRobot(BaseTask):
         self.env_class[env_ids] = self.terrain_class[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
         
         temp = self.terrain_goals[self.terrain_levels, self.terrain_types]
+
         last_col = temp[:, -1].unsqueeze(1)
+        
         self.env_goals[:] = torch.cat((temp, last_col.repeat(1, self.cfg.env.num_future_goal_obs, 1)), dim=1)[:]
+        
         self.cur_goals = self._gather_cur_goals()
         self.next_goals = self._gather_cur_goals(future=1)
 
@@ -1031,12 +1083,19 @@ class LeggedRobot(BaseTask):
             self.env_class[:] = self.terrain_class[self.terrain_levels, self.terrain_types]
 
             self.terrain_goals = torch.from_numpy(self.terrain.goals).to(self.device).to(torch.float)
+            self.terrain_planner_goals = torch.from_numpy(self.terrain.planner_goals).to(self.device).to(torch.float)
             self.env_goals = torch.zeros(self.num_envs, self.cfg.terrain.num_goals + self.cfg.env.num_future_goal_obs, 3, device=self.device, requires_grad=False)
+            self.env_planner_goals = torch.zeros(self.num_envs, self.cfg.terrain.num_goals + self.cfg.env.num_future_goal_obs, device=self.device, requires_grad=False)
             self.cur_goal_idx = torch.zeros(self.num_envs, device=self.device, requires_grad=False, dtype=torch.long)
             temp = self.terrain_goals[self.terrain_levels, self.terrain_types]
+            temp_planner_goal = self.terrain_planner_goals[self.terrain_levels, self.terrain_types]
+            # temp_planner_goals = self.terrain_goals[self.terrain_levels, self.terrain_types]
             last_col = temp[:, -1].unsqueeze(1)
+            last_planner_col = temp_planner_goal[:, -1].unsqueeze(1)
             self.env_goals[:] = torch.cat((temp, last_col.repeat(1, self.cfg.env.num_future_goal_obs, 1)), dim=1)[:]
+            self.env_planner_goals[:] = torch.cat((temp_planner_goal, last_planner_col.repeat(1, self.cfg.env.num_future_goal_obs)), dim=1)[:]
             self.cur_goals = self._gather_cur_goals()
+            # if 
             self.next_goals = self._gather_cur_goals(future=1)
 
         else:
@@ -1239,8 +1298,19 @@ class LeggedRobot(BaseTask):
         rew[self.env_class != 17] *= 0.5
         return rew
     
-    def _reward_ang_vel_xy(self):
-        return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
+    def _reward_ang_vel_x(self):
+        # return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
+        # import ipdb;ipdb.set_trace()
+        rew = torch.sum(torch.square(self.base_ang_vel[:, 0]).reshape((self.num_envs,1)), dim=1)
+
+        rew[self.env_class != 17] *= 0.5
+        return rew
+    
+    def _reward_ang_vel_y(self):
+        # return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
+        rew = torch.sum(torch.square(self.base_ang_vel[:, 1]).reshape((self.num_envs,1)), dim=1)
+        rew[self.env_class != 17] *= 0.5
+        return rew
      
     def _reward_orientation(self):
         rew = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
@@ -1284,3 +1354,12 @@ class LeggedRobot(BaseTask):
         self.feet_at_edge = self.contact_filt & feet_at_edge
         rew = (self.terrain_levels > 3) * torch.sum(self.feet_at_edge, dim=-1)
         return rew
+    
+    def _reward_reach_planner_goals(self):
+        # next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        planner_goal_reward = self.planner_goal_reached.clone().detach()
+        self.planner_goal_reached = torch.zeros_like(self.planner_goal_reached)
+        # import ipdb;ipdb.set_trace()
+        return planner_goal_reward
+        # check if it is in the goal
+        # if it is, then set goal to the next
