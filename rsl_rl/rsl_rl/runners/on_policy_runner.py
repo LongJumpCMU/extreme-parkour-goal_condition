@@ -322,7 +322,7 @@ class OnPolicyRunner:
                     self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(it)))
             ep_infos.clear()
     
-    def log_vision(self, locs, width=80, pad=35):
+    def log_vision(self, locs, width=80, pad=35): # adding reaching reward to log!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         self.tot_timesteps += self.num_steps_per_env * self.env.num_envs
         self.tot_time += locs['collection_time'] + locs['learn_time']
         iteration_time = locs['collection_time'] + locs['learn_time']

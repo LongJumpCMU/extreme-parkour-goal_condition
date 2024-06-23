@@ -845,7 +845,7 @@ def parkour_step_terrain(terrain,
     goals[-1] = [final_dis_x, mid_y]
     
     terrain.goals = goals * terrain.horizontal_scale
-    
+    terrain.planner_goals = np.ones(terrain.goals.shape[0])
     # terrain.height_field_raw[:, :max(mid_y-half_valid_width, 0)] = 0
     # terrain.height_field_raw[:, min(mid_y+half_valid_width, terrain.height_field_raw.shape[1]):] = 0
     # terrain.height_field_raw[:, :] = 0

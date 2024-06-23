@@ -388,7 +388,7 @@ class LeggedRobot(BaseTask):
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
     
-    def compute_yaw(self, cur_goals, root_states):
+    def compute_yaw(self, cur_goals, root_states): # yaw should be bounded between -pi and pi!!!!!!!!!!!!!!!!!!!!!!
         target_pos_rel = cur_goals[:, :2] - root_states[:, :2]
 
         norm = torch.norm(target_pos_rel, dim=-1, keepdim=True)
@@ -407,7 +407,7 @@ class LeggedRobot(BaseTask):
             cur_pos = self.root_states[:, :3]
             next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
             planner_yaw =  self.compute_yaw(next_planner_goal, self.root_states)
-            self.delta_yaw = planner_yaw - self.yaw
+            self._planner_delta_yaw = planner_yaw - self.yaw
             self.planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
         # import ipdb; ipdb.set_trace()
         obs_buf = torch.cat((#skill_vector, 
@@ -425,7 +425,7 @@ class LeggedRobot(BaseTask):
                             self.reindex(self.action_history_buf[:, -1]),
                             self.reindex_feet(self.contact_filt.float()-0.5),
                             self.planner_goal_heu.reshape((self.num_envs,1)),
-                            self.delta_yaw[:, None],
+                            self._planner_delta_yaw[:, None],
                             ),dim=-1)
         priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
                                    0 * self.base_lin_vel,
@@ -1299,6 +1299,9 @@ class LeggedRobot(BaseTask):
         rew = torch.square(self.base_lin_vel[:, 2])
         rew[self.env_class != 17] *= 0.5
         return rew
+    
+    def _reward_ang_vel_xy(self):
+        return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
     
     def _reward_ang_vel_x(self):
         # return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
