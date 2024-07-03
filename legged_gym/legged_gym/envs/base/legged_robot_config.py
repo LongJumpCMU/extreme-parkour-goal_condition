@@ -187,17 +187,17 @@ class LeggedRobotCfg(BaseConfig):
                         "parkour": 0.0,
                         "parkour_hurdle": 0.2,
                         "parkour_flat": 0.2,
-                        "parkour_step": 0.0,
+                        "parkour_step": 0.2,
                         "parkour_gap": 0.2,
                         "demo": 0.0,
-                        "parkour_hurdle_edge": 0.2,}
+                        "parkour_hurdle_edge": 0.0,}
         terrain_proportions = list(terrain_dict.values())
         
         # trimesh only:
         slope_treshold = 1.5# slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals =14
+        num_goals =8
 
     class commands:
         curriculum = False
