@@ -185,10 +185,10 @@ class LeggedRobotCfg(BaseConfig):
                         "large stairs up": 0.,
                         "large stairs down": 0.,
                         "parkour": 0.0,
-                        "parkour_hurdle": 0.0,
+                        "parkour_hurdle": 0.2,
                         "parkour_flat": 0.2,
                         "parkour_step": 0.2,
-                        "parkour_gap": 0.0,
+                        "parkour_gap": 0.2,
                         "demo": 0.0,
                         "parkour_hurdle_edge": 0.0,}
         terrain_proportions = list(terrain_dict.values())
@@ -197,7 +197,7 @@ class LeggedRobotCfg(BaseConfig):
         slope_treshold = 1.5# slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals =14
+        num_goals = 8
 
     class commands:
         curriculum = False
@@ -312,9 +312,30 @@ class LeggedRobotCfg(BaseConfig):
         #     feet_edge = -1
         #     reach_planner_goals = 50
 
+        # class scales:
+        #     # tracking rewards
+        #     tracking_goal_vel = 3.5 #1.5
+        #     tracking_yaw = 0.5 # 0.5 original
+        #     # regularization rewards
+        #     lin_vel_z =-1.0
+        #     ang_vel_xy = -0.05
+        #     # ang_vel_x = -0.05 # was -0.05 originally
+        #     # ang_vel_y = -0.05 # was -0.05 originally
+        #     orientation = -1.
+        #     dof_acc = -2.5e-7
+        #     collision = -1#-0.5 #-0.1,-3 #-10. originally
+        #     action_rate = -0.1
+        #     delta_torques = -1.0e-7
+        #     torques = -0.00001
+        #     hip_pos = -0.5
+        #     dof_error = -0.04
+        #     feet_stumble = -1
+        #     feet_edge = -1
+        #     reach_planner_goals = 1 #1, 10
+
         class scales:
             # tracking rewards
-            tracking_goal_vel = 3.5 #1.5
+            tracking_goal_vel = 1.5 #1.5
             tracking_yaw = 0.5 # 0.5 original
             # regularization rewards
             lin_vel_z =-1.0
@@ -323,7 +344,7 @@ class LeggedRobotCfg(BaseConfig):
             # ang_vel_y = -0.05 # was -0.05 originally
             orientation = -1.
             dof_acc = -2.5e-7
-            collision = -1#-0.5 #-0.1,-3 #-10. originally
+            collision = -10#-0.5 #-0.1,-3 #-10. originally
             action_rate = -0.1
             delta_torques = -1.0e-7
             torques = -0.00001
@@ -331,15 +352,22 @@ class LeggedRobotCfg(BaseConfig):
             dof_error = -0.04
             feet_stumble = -1
             feet_edge = -1
-            reach_planner_goals = 1 #1, 10
+            # reach_planner_goals = 1 #1, 10
+            reach_planner_goals_distance = 1.0
+            reach_planner_goals_yaw = 1.0
+
             
-        only_positive_rewards = False #True # if true negative total rewards are clipped at zero (avoids early termination problems)
+        only_positive_rewards = True #True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.2 # tracking reward = exp(-error^2/sigma)
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
         soft_dof_vel_limit = 1
         soft_torque_limit = 0.4
         base_height_target = 1.
         max_contact_force = 40. # forces above this value are penalized
+        goal_distace_reward_threshold = 1.0
+        goal_yaw_reward_threshold = 0.5
+        abs_yaw_sigma = 1.0
+
 
 
 
