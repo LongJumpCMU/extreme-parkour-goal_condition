@@ -618,7 +618,7 @@ class LeggedRobot(BaseTask):
         range_tensor = torch.arange(mask.shape[1]).unsqueeze(0).expand(self.num_envs, -1)
         mask[range_tensor <= mask_idx.unsqueeze(1).cpu()] = True
         filtered_tensor = np.where(mask, planner_goal_cpu, 0)
-        result = np.argmax(filtered_tensor == 1, axis=1)
+        result = np.where(filtered_tensor == 1, np.arange(filtered_tensor.shape[1]), 0).max(axis=1) #np.argmax(filtered_tensor == 1, axis=1)
 
         # Check if no 1 was found in the filtered part, set those results to -1
         result[np.all(filtered_tensor == 0, axis=1)] = -1
@@ -1424,7 +1424,7 @@ class LeggedRobot(BaseTask):
         planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
 
         abs_yaw =  self.compute_yaw(next_planner_goal, prev_planner_goal)
-
+        # import ipdb; ipdb.set_trace()
 
         abs_delta_yaw = abs_yaw - self.yaw
 
