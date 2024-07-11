@@ -43,7 +43,7 @@ class LeggedRobotCfg(BaseConfig):
         n_scan = 132
         n_priv = 3+3 +3
         n_priv_latent = 4 + 1 + 12 +12
-        n_proprio = 3 + 2 + 3 + 4 + 36 + 5 + 2 # added planner goal distance as the extra dimension at the end of the obs_buf
+        n_proprio = 3 + 2 + 3 + 4 + 36 + 5 + 2 # +1 #!!!!!!for abs heading from prev planner point to next # added planner goal distance as the extra dimension at the end of the obs_buf
         history_len = 10
 
         num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent + n_priv #n_scan + n_proprio + n_priv #187 + 47 + 5 + 12 
@@ -190,7 +190,7 @@ class LeggedRobotCfg(BaseConfig):
                         "parkour_step": 0.2,
                         "parkour_gap": 0.2,
                         "demo": 0.0,
-                        "parkour_hurdle_edge": 0.0,}
+                        "parkour_hurdle_edge": 0.2,}
         terrain_proportions = list(terrain_dict.values())
         
         # trimesh only:
@@ -354,7 +354,7 @@ class LeggedRobotCfg(BaseConfig):
             feet_edge = -1
             # reach_planner_goals = 1 #1, 10
             reach_planner_goals_distance = 1.0
-            reach_planner_goals_yaw = 1.0
+            # reach_planner_goals_yaw = 1.0
 
             
         only_positive_rewards = True #True # if true negative total rewards are clipped at zero (avoids early termination problems)

@@ -414,6 +414,10 @@ class LeggedRobot(BaseTask):
             planner_yaw =  self.compute_yaw(next_planner_goal, self.root_states)
             self._planner_delta_yaw = planner_yaw - self.yaw
             self.planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
+            # absolute yaw from prev planner pnt to next
+            prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+            abs_yaw =  self.compute_yaw(next_planner_goal, prev_planner_goal)
+            self.abs_delta_yaw = abs_yaw - self.yaw
         # import ipdb; ipdb.set_trace()
         obs_buf = torch.cat((#skill_vector, 
                             self.base_ang_vel  * self.obs_scales.ang_vel,   #[1,3]
@@ -431,6 +435,7 @@ class LeggedRobot(BaseTask):
                             self.reindex_feet(self.contact_filt.float()-0.5),
                             self.planner_goal_heu.reshape((self.num_envs,1)),
                             self._planner_delta_yaw[:, None],
+                            # self.abs_delta_yaw[:, None], # uncomment later
                             ),dim=-1)
         priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
                                    0 * self.base_lin_vel,
@@ -629,7 +634,7 @@ class LeggedRobot(BaseTask):
     
     def get_planner_goal_heuristic_obs(self, curr_pos, next_pos):
         # import ipdb; ipdb.set_trace()
-        return torch.norm((curr_pos-next_pos), p=2, dim=1)
+        return torch.norm((curr_pos[:, :2]-next_pos[:, :2]), p=2, dim=1)
     
     
     def _gather_cur_goals(self, future=0):
@@ -1406,7 +1411,7 @@ class LeggedRobot(BaseTask):
         cur_pos = self.root_states[:, :3]
         next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
         planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
-
+        # import ipdb; ipdb.set_trace()
         exp_reward = torch.zeros_like(planner_goal_heu)
 
 
