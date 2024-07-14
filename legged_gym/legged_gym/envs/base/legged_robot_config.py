@@ -33,6 +33,7 @@ from torch.nn.modules.activation import ReLU
 from torch.nn.modules.pooling import MaxPool2d
 from .base_config import BaseConfig
 import torch.nn as nn
+import numpy as np
 class LeggedRobotCfg(BaseConfig):
     class play:
         load_student_config = False
@@ -43,7 +44,7 @@ class LeggedRobotCfg(BaseConfig):
         n_scan = 132
         n_priv = 3+3 +3
         n_priv_latent = 4 + 1 + 12 +12
-        n_proprio = 3 + 2 + 3 + 4 + 36 + 5 + 2 # +1 #!!!!!!for abs heading from prev planner point to next # added planner goal distance as the extra dimension at the end of the obs_buf
+        n_proprio = 3 + 2 + 3 + 4 + 36 + 5 + 2  +1 #!!!!!!for abs heading from prev planner point to next # added planner goal distance as the extra dimension at the end of the obs_buf
         history_len = 10
 
         num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent + n_priv #n_scan + n_proprio + n_priv #187 + 47 + 5 + 12 
@@ -92,7 +93,9 @@ class LeggedRobotCfg(BaseConfig):
         camera_terrain_num_rows = 10
         camera_terrain_num_cols = 20
 
-        position = [0.27, 0, 0.03]  # front camera
+        # position = [0.27, 0, 0.03]  # front camera
+        position = [0.3, 0, 0.03]  # front camera
+
         angle = [-5, 5]  # positive pitch down
 
         update_interval = 5  # 5 works without retraining, 8 worse
@@ -190,7 +193,7 @@ class LeggedRobotCfg(BaseConfig):
                         "parkour_step": 0.2,
                         "parkour_gap": 0.2,
                         "demo": 0.0,
-                        "parkour_hurdle_edge": 0.2,}
+                        "parkour_hurdle_edge": 0.0,}
         terrain_proportions = list(terrain_dict.values())
         
         # trimesh only:
@@ -339,6 +342,7 @@ class LeggedRobotCfg(BaseConfig):
             tracking_yaw = 0.5 # 0.5 original
             # regularization rewards
             lin_vel_z =-1.0
+            # lin_vel_y = -1.0
             ang_vel_xy = -0.05
             # ang_vel_x = -0.05 # was -0.05 originally
             # ang_vel_y = -0.05 # was -0.05 originally
@@ -348,13 +352,16 @@ class LeggedRobotCfg(BaseConfig):
             action_rate = -0.1
             delta_torques = -1.0e-7
             torques = -0.00001
-            hip_pos = -0.5
+            hip_pos = -0.5#-2.0# originally -0.5
             dof_error = -0.04
             feet_stumble = -1
             feet_edge = -1
             # reach_planner_goals = 1 #1, 10
-            reach_planner_goals_distance = 1.0
-            # reach_planner_goals_yaw = 1.0
+            # reach_planner_goals_distance = 1.0
+            # reach_planner_goals_yaw = 0.005 #1.0
+            # reach_planner_goals_yaw_tol = 100.0#1.0
+            # reach_planner_goals_yaw_tol_stages = 1.0
+            # reach_planner_goals_stages = 1.0
 
             
         only_positive_rewards = True #True # if true negative total rewards are clipped at zero (avoids early termination problems)
@@ -367,6 +374,7 @@ class LeggedRobotCfg(BaseConfig):
         goal_distace_reward_threshold = 1.0
         goal_yaw_reward_threshold = 0.5
         abs_yaw_sigma = 1.0
+        yaw_tol = np.pi/9
 
 
 

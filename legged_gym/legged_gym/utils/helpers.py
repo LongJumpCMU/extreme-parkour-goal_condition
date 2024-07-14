@@ -136,7 +136,10 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
             env_cfg.terrain.terrain_dict["parkour_flat"] = 0.05
             env_cfg.terrain.terrain_dict["parkour_gap"] = 0.2
             env_cfg.terrain.terrain_dict["parkour_step"] = 0.2
-            env_cfg.terrain.terrain_dict["demo"] = 0.15
+            # env_cfg.terrain.terrain_dict["demo"] = 0.15
+            env_cfg.terrain.terrain_dict["parkour_hurdle_edge"] = 0.2
+
+
             env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
         if env_cfg.depth.use_camera:
             env_cfg.terrain.y_range = [-0.1, 0.1]

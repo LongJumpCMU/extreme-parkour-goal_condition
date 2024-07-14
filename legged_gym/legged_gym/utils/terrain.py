@@ -121,17 +121,21 @@ class Terrain:
                 difficulty = i / (self.cfg.num_rows-1)
                 choice = j / self.cfg.num_cols + 0.001
                 if random:
+                    # import ipdb; ipdb.set_trace()
                     if max_difficulty:
                         terrain = self.make_terrain(choice, np.random.uniform(0.7, 1))
                     else:
                         terrain = self.make_terrain(choice, np.random.uniform(0, 1))
                 else:
+                    # import ipdb; ipdb.set_trace()
                     terrain = self.make_terrain(choice, difficulty)
 
                 self.add_terrain_to_map(terrain, i, j)
 
     def selected_terrain(self):
         terrain_type = self.cfg.terrain_kwargs.pop('type')
+        # import ipdb; ipdb.set_trace()
+
         for k in range(self.cfg.num_sub_terrains):
             # Env coordinates in the world
             (i, j) = np.unravel_index(k, (self.cfg.num_rows, self.cfg.num_cols))
@@ -164,6 +168,7 @@ class Terrain:
         gap_size = 1. * difficulty
         pit_depth = 1. * difficulty
         if choice < self.proportions[0]:
+            import ipdb; ipdb.set_trace()
             idx = 0
             if choice < self.proportions[0]/ 2:
                 idx = 1
@@ -171,6 +176,8 @@ class Terrain:
             terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=3.)
             # self.add_roughness(terrain)
         elif choice < self.proportions[2]:
+            import ipdb; ipdb.set_trace()
+
             idx = 2
             if choice<self.proportions[1]:
                 idx = 3
@@ -178,6 +185,8 @@ class Terrain:
             terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=3.)
             self.add_roughness(terrain)
         elif choice < self.proportions[4]:
+            import ipdb; ipdb.set_trace()
+
             idx = 4
             if choice<self.proportions[3]:
                 idx = 5
@@ -185,6 +194,8 @@ class Terrain:
             terrain_utils.pyramid_stairs_terrain(terrain, step_width=0.31, step_height=step_height, platform_size=3.)
             self.add_roughness(terrain)
         elif choice < self.proportions[5]:
+            import ipdb; ipdb.set_trace()
+
             idx = 6
             num_rectangles = 20
             rectangle_min_size = 0.5
@@ -192,6 +203,8 @@ class Terrain:
             terrain_utils.discrete_obstacles_terrain(terrain, discrete_obstacles_height, rectangle_min_size, rectangle_max_size, num_rectangles, platform_size=3.)
             self.add_roughness(terrain)
         elif choice < self.proportions[6]:
+            import ipdb; ipdb.set_trace()
+
             idx = 7
             stones_size = 1.5 - 1.2*difficulty
             # terrain_utils.stepping_stones_terrain(terrain, stone_size=stones_size, stone_distance=0.1, stone_distance_rand=0, max_height=0.04*difficulty, platform_size=2.)
@@ -199,18 +212,26 @@ class Terrain:
             stepping_stones_terrain(terrain, stone_size=1.5-0.2*difficulty, stone_distance=0.0+0.4*difficulty, max_height=0.2*difficulty, platform_size=1.2)
             self.add_roughness(terrain)
         elif choice < self.proportions[7]:
+            import ipdb; ipdb.set_trace()
+
             idx = 8
             # gap_size = random.uniform(self.cfg.gap_size[0], self.cfg.gap_size[1])
             gap_parkour_terrain(terrain, difficulty, platform_size=4)
             self.add_roughness(terrain)
         elif choice < self.proportions[8]:
+            import ipdb; ipdb.set_trace()
+
             idx = 9
             self.add_roughness(terrain)
             # pass
         elif choice < self.proportions[9]:
+            import ipdb; ipdb.set_trace()
+
             idx = 10
             pit_terrain(terrain, depth=pit_depth, platform_size=4.)
         elif choice < self.proportions[10]:
+            import ipdb; ipdb.set_trace()
+
             idx = 11
             if self.cfg.all_vertical:
                 half_slope_difficulty = 1.0
@@ -238,11 +259,15 @@ class Terrain:
             self.add_roughness(terrain, difficulty=1)
             terrain.height_field_raw[top_mask] = max_height
         elif choice < self.proportions[11]:
+            import ipdb; ipdb.set_trace()
+
             idx = 12
             # half platform terrain
             half_platform_terrain(terrain, max_height=0.1 + 0.4 * difficulty )
             self.add_roughness(terrain, difficulty=1)
         elif choice < self.proportions[13]:
+            import ipdb; ipdb.set_trace()
+
             idx = 13
             height = 0.1 + 0.3 * difficulty
             if choice < self.proportions[12]:
@@ -251,6 +276,8 @@ class Terrain:
             terrain_utils.pyramid_stairs_terrain(terrain, step_width=1., step_height=height, platform_size=3.)
             self.add_roughness(terrain)
         elif choice < self.proportions[14]:
+            import ipdb; ipdb.set_trace()
+
             x_range = [-0.1, 0.1+0.3*difficulty]  # offset to stone_len
             y_range = [0.2, 0.3+0.1*difficulty]
             stone_len = [0.9 - 0.3*difficulty, 1 - 0.2*difficulty]#2 * round((0.6) / 2.0, 1)
@@ -270,6 +297,8 @@ class Terrain:
             # terrain.height_field_raw[:] = 0
             self.add_roughness(terrain)
         elif choice < self.proportions[15]:
+            # import ipdb; ipdb.set_trace()
+
             idx = 16
             parkour_hurdle_terrain(terrain,
                                    num_stones=self.num_goals - 2,
@@ -283,6 +312,8 @@ class Terrain:
             # terrain.height_field_raw[:] = 0
             self.add_roughness(terrain)
         elif choice < self.proportions[16]:
+            # import ipdb; ipdb.set_trace()
+
             idx = 17
             parkour_hurdle_terrain(terrain,
                                    num_stones=self.num_goals - 2,
@@ -295,6 +326,8 @@ class Terrain:
                                    )
             self.add_roughness(terrain)
         elif choice < self.proportions[17]:
+            # import ipdb; ipdb.set_trace()
+
             idx = 18
             parkour_step_terrain(terrain,
                                    num_stones=self.num_goals - 2,
@@ -306,6 +339,8 @@ class Terrain:
                                    )
             self.add_roughness(terrain)
         elif choice < self.proportions[18]:
+            # import ipdb; ipdb.set_trace()
+
             idx = 19
             parkour_gap_terrain(terrain,
                                 num_gaps=self.num_goals - 2,
@@ -319,11 +354,15 @@ class Terrain:
                                 )
             self.add_roughness(terrain)
         elif choice < self.proportions[19]:
+            # import ipdb; ipdb.set_trace()
+
             idx = 20
             demo_terrain(terrain)
             self.add_roughness(terrain)
         
         elif choice < self.proportions[20]:
+            # import ipdb; ipdb.set_trace()
+
             idx = 21
             # parkour_hurdle_edge_terrain(terrain,
             #                        num_stones=self.num_goals//2-1,
@@ -840,45 +879,53 @@ def parkour_hurdle_edge_curated_terrain(terrain,
     
     # incline_height = round(incline_height / terrain.vertical_scale)
     # last_incline_height = round(last_incline_height / terrain.vertical_scale)
+    scenario_sides = np.random.randint(0, 2)
 
     dis_x = platform_len
-    goals[0] = [platform_len - 1, mid_y]
-    
+    rand_x = np.random.randint(dis_x_min, dis_x_max)
+    rand_y = np.random.randint(dis_y_min, dis_y_max)
+    goals[0] = [platform_len - 1, mid_y+rand_y]
+    sides = [mid_y+rand_y-half_valid_width, mid_y+rand_y+half_valid_width]
+    bound = sides[scenario_sides]
 
     
-    scenario_sides = np.random.randint(0, 2)
     # scenario_sides = [0,0,0,1,1,1]
     move_y_range = round(abs(measured_points_y[-1] - measured_points_y[0])/ terrain.horizontal_scale)
     scenario_out_range = [[move_y_range, move_y_range/2],[move_y_range/2, move_y_range],[move_y_range/2, move_y_range/2]] # [goal_before, goal after]
 
     last_dis_x = dis_x
-    rand_x = np.random.randint(dis_x_min, dis_x_max)
-    rand_y = np.random.randint(dis_y_min, dis_y_max)
+    
     robot_len_half = round(0.3 / terrain.horizontal_scale)
     robot_len_half_w = round(0.3 / 2.0 / terrain.horizontal_scale)
 
-    for i in range(num_stones):
+    for i in range(num_stones+1):
 
         if i == 0:
             x_lower_bound = goals[0][0] + robot_len_half
         else:
             x_lower_bound = round(dis_x+stone_len//2) + robot_len_half
+
+
         
         dis_x += rand_x
 
         sides = [mid_y+rand_y-half_valid_width, mid_y+rand_y+half_valid_width]
         block_x_range =  [dis_x-stone_len//2, dis_x+stone_len//2]
         # block_y_range =  [mid_y+rand_y-half_valid_width, mid_y+rand_y+half_valid_width]
-        terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, ] = np.random.randint(hurdle_height_min, hurdle_height_max)
-        terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, :mid_y+rand_y-half_valid_width] = 0
-        terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, mid_y+rand_y+half_valid_width:] = 0
-
-        bound = sides[scenario_sides]
-        
         sign = 1
         if scenario_sides == 0:
             sign = -1
         last_dis_x = dis_x
+        
+        if i < num_stones:
+            terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, ] = np.random.randint(hurdle_height_min, hurdle_height_max)
+            terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, :mid_y+rand_y-half_valid_width] = 0
+            terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, mid_y+rand_y+half_valid_width:] = 0
+        x_lower_bound_y = bound + round(scenario_out_range[i%len(scenario_out_range)][0])*sign - sign*move_y_range//2
+        x_upper_bound_y = bound - round(scenario_out_range[i%len(scenario_out_range)][0])*sign + sign*move_y_range//2
+        bound = sides[scenario_sides]
+        
+        
         
         
 
@@ -887,13 +934,16 @@ def parkour_hurdle_edge_curated_terrain(terrain,
 
         
         x_upper_bound = block_x_range[0] - robot_len_half
-        x_lower_bound_y = bound + round(scenario_out_range[i%len(scenario_out_range)][0])*sign - sign*move_y_range//2
-        x_upper_bound_y = bound - round(scenario_out_range[i%len(scenario_out_range)][0])*sign + sign*move_y_range//2
+        # if i < num_stones:
+            
         
         lower_boundx = min(x_lower_bound, x_upper_bound) 
         upper_boundx = max(x_lower_bound, x_upper_bound)
         lower_boundy = min(x_lower_bound_y, x_upper_bound_y)
         upper_boundy = max(x_lower_bound_y, x_upper_bound_y)
+        # if i == 1:
+        #     lower_boundy = min(bound, bound + 1//terrain.horizontal_scale*sign)
+        #     upper_boundy = max(bound, bound + 1//terrain.horizontal_scale*sign)
         goal_before_x = np.random.randint(lower_boundx,upper_boundx) 
         goal_before_y = np.random.uniform(lower_boundy,upper_boundy)
 
@@ -913,11 +963,12 @@ def parkour_hurdle_edge_curated_terrain(terrain,
 
         # goal_after_y = np.random.uniform(lower_boundy,upper_boundy)
         goals[i*3+1] = [goal_before_x, goal_before_y]#[goal_before_x, goal_before_y]
-        goals[i*3+2] = [curated1_x, curated1_y]#[goal_before_x, goal_before_y]
-        goals[i*3+3] = [curated2_x, curated2_y]#[goal_before_x, goal_before_y]
-        # setting the curated points not to be planner goals
-        terrain.planner_goals[i*3+2] = 0
-        terrain.planner_goals[i*3+3] = 0
+        if i < num_stones:
+            goals[i*3+2] = [curated1_x, curated1_y]#[goal_before_x, goal_before_y]
+            goals[i*3+3] = [curated2_x, curated2_y]#[goal_before_x, goal_before_y]
+            # setting the curated points not to be planner goals
+            terrain.planner_goals[i*3+2] = 0
+            terrain.planner_goals[i*3+3] = 0
 
         # goals[i*2+2] = [goal_after_x, goal_after_y]
         # import ipdb; ipdb.set_trace()
@@ -927,7 +978,7 @@ def parkour_hurdle_edge_curated_terrain(terrain,
     # import ipdb; ipdb.set_trace()
     if final_dis_x > terrain.width:
         final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
-    goals[-1] = [final_dis_x, mid_y]
+    # goals[-1] = [final_dis_x, mid_y]
     
     terrain.goals = goals * terrain.horizontal_scale
     # planner goals indicated by one hot encoding, means it doesn't have looking ahead when it is the next point
@@ -1061,32 +1112,32 @@ def demo_terrain(terrain):
     goals[4] = [platform_length+forth_step_depth/2, mid_y]
     terrain.height_field_raw[platform_length:platform_length+forth_step_depth, round(mid_y-forth_step_width/2):round(mid_y+forth_step_width/2)] = forth_step_height
     
-    # parkour
-    platform_length += forth_step_depth
-    gap_size = round(np.random.uniform(0.1, 0.4) / terrain.horizontal_scale)
-    platform_length += gap_size
+    # # parkour
+    # platform_length += forth_step_depth
+    # gap_size = round(np.random.uniform(0.1, 0.4) / terrain.horizontal_scale)
+    # platform_length += gap_size
     
-    left_y = mid_y + round(np.random.uniform(0.15, 0.3) / terrain.horizontal_scale)
-    right_y = mid_y - round(np.random.uniform(0.15, 0.3) / terrain.horizontal_scale)
+    # left_y = mid_y + round(np.random.uniform(0.15, 0.3) / terrain.horizontal_scale)
+    # right_y = mid_y - round(np.random.uniform(0.15, 0.3) / terrain.horizontal_scale)
     
-    slope_height = round(np.random.uniform(0.15, 0.22) / terrain.vertical_scale)
-    slope_depth = round(np.random.uniform(0.75, 0.85) / terrain.horizontal_scale)
-    slope_width = round(1.0 / terrain.horizontal_scale)
+    # slope_height = round(np.random.uniform(0.15, 0.22) / terrain.vertical_scale)
+    # slope_depth = round(np.random.uniform(0.75, 0.85) / terrain.horizontal_scale)
+    # slope_width = round(1.0 / terrain.horizontal_scale)
     
-    platform_height = slope_height + np.random.randint(0, 0.2 / terrain.vertical_scale)
+    # platform_height = slope_height + np.random.randint(0, 0.2 / terrain.vertical_scale)
 
-    goals[5] = [platform_length+slope_depth/2, left_y]
-    heights = np.tile(np.linspace(-slope_height, slope_height, slope_width), (slope_depth, 1)) * 1
-    terrain.height_field_raw[platform_length:platform_length+slope_depth, left_y-slope_width//2: left_y+slope_width//2] = heights.astype(int) + platform_height
+    # goals[5] = [platform_length+slope_depth/2, left_y]
+    # heights = np.tile(np.linspace(-slope_height, slope_height, slope_width), (slope_depth, 1)) * 1
+    # terrain.height_field_raw[platform_length:platform_length+slope_depth, left_y-slope_width//2: left_y+slope_width//2] = heights.astype(int) + platform_height
     
-    platform_length += slope_depth + gap_size
-    goals[6] = [platform_length+slope_depth/2, right_y]
-    heights = np.tile(np.linspace(-slope_height, slope_height, slope_width), (slope_depth, 1)) * -1
-    terrain.height_field_raw[platform_length:platform_length+slope_depth, right_y-slope_width//2: right_y+slope_width//2] = heights.astype(int) + platform_height
+    # platform_length += slope_depth + gap_size
+    # goals[6] = [platform_length+slope_depth/2, right_y]
+    # heights = np.tile(np.linspace(-slope_height, slope_height, slope_width), (slope_depth, 1)) * -1
+    # terrain.height_field_raw[platform_length:platform_length+slope_depth, right_y-slope_width//2: right_y+slope_width//2] = heights.astype(int) + platform_height
     
-    platform_length += slope_depth + gap_size + round(0.4 / terrain.horizontal_scale)
-    goals[-1] = [platform_length, left_y]
-    terrain.goals = goals * terrain.horizontal_scale
+    # platform_length += slope_depth + gap_size + round(0.4 / terrain.horizontal_scale)
+    # goals[-1] = [platform_length, left_y]
+    # terrain.goals = goals * terrain.horizontal_scale
 
 def pit_terrain(terrain, depth, platform_size=1.):
     depth = int(depth / terrain.vertical_scale)

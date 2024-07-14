@@ -393,13 +393,49 @@ class LeggedRobot(BaseTask):
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
     
-    def compute_yaw(self, cur_goals, root_states): # yaw should be bounded between -pi and pi!!!!!!!!!!!!!!!!!!!!!!
+    def compute_yaw(self, cur_goals, root_states, mode=0): # yaw should be bounded between -pi and pi!!!!!!!!!!!!!!!!!!!!!!
         target_pos_rel = cur_goals[:, :2] - root_states[:, :2]
-
         norm = torch.norm(target_pos_rel, dim=-1, keepdim=True)
-        target_vec_norm = target_pos_rel / (norm + 1e-5)
-        target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
-        return target_yaw
+        
+        if mode ==1:
+            target_vec_norm = target_pos_rel / (norm + 1e-5)
+
+            target_pos_rel = cur_goals[:, :2] - self.root_states[:, :2]
+            norm = torch.norm(target_pos_rel, dim=-1, keepdim=True)
+            # import ipdb; ipdb.set_trace()
+            mask = norm <= 1e-5
+            mask = mask.expand_as(target_vec_norm)
+            target_vec_norm[mask] = target_pos_rel[mask] / (norm[norm <= 1e-5] + 1e-5)
+            target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
+            return target_yaw
+        else:
+            target_vec_norm = target_pos_rel / (norm + 1e-5)
+            target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
+            return target_yaw
+    
+    def compute_yaw_vector(self, cur_goals, root_states, mode=0): # yaw should be bounded between -pi and pi!!!!!!!!!!!!!!!!!!!!!!
+        target_pos_rel = cur_goals[:, :2] - root_states[:, :2]
+        norm = torch.norm(target_pos_rel, dim=-1, keepdim=True)
+        
+        if mode ==1:
+            target_vec_norm = target_pos_rel / (norm + 1e-5)
+
+            target_pos_rel = cur_goals[:, :2] - self.root_states[:, :2]
+            norm = torch.norm(target_pos_rel, dim=-1, keepdim=True)
+            # import ipdb; ipdb.set_trace()
+            mask = norm <= 1e-5
+            mask = mask.expand_as(target_vec_norm)
+            target_vec_norm[mask] = target_pos_rel[mask] / (norm[norm <= 1e-5] + 1e-5)
+            # target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
+            return target_vec_norm
+        else:
+            target_vec_norm = target_pos_rel / (norm + 1e-5)
+            # target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
+            return target_vec_norm
+
+
+
+            
     def compute_observations(self):
         """ 
         Computes observations
@@ -407,17 +443,17 @@ class LeggedRobot(BaseTask):
         imu_obs = torch.stack((self.roll, self.pitch), dim=1)
         
         if self.global_counter % 5 == 0:
-            self.delta_yaw = self.target_yaw - self.yaw
-            self.delta_next_yaw = self.next_target_yaw - self.yaw
+            self.delta_yaw = wrap_to_pi(self.target_yaw - self.yaw)
+            self.delta_next_yaw = wrap_to_pi(self.next_target_yaw - self.yaw)
             cur_pos = self.root_states[:, :3]
             next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
             planner_yaw =  self.compute_yaw(next_planner_goal, self.root_states)
             self._planner_delta_yaw = planner_yaw - self.yaw
             self.planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
             # absolute yaw from prev planner pnt to next
-            prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
-            abs_yaw =  self.compute_yaw(next_planner_goal, prev_planner_goal)
-            self.abs_delta_yaw = abs_yaw - self.yaw
+            self.prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+            self.abs_yaw =  self.compute_yaw(next_planner_goal, self.prev_planner_goal,mode=1)
+            self.abs_delta_yaw = wrap_to_pi(self.abs_yaw - self.yaw)
         # import ipdb; ipdb.set_trace()
         obs_buf = torch.cat((#skill_vector, 
                             self.base_ang_vel  * self.obs_scales.ang_vel,   #[1,3]
@@ -435,7 +471,7 @@ class LeggedRobot(BaseTask):
                             self.reindex_feet(self.contact_filt.float()-0.5),
                             self.planner_goal_heu.reshape((self.num_envs,1)),
                             self._planner_delta_yaw[:, None],
-                            # self.abs_delta_yaw[:, None], # uncomment later
+                            self.abs_delta_yaw[:, None], # uncomment later
                             ),dim=-1)
         priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
                                    0 * self.base_lin_vel,
@@ -604,7 +640,8 @@ class LeggedRobot(BaseTask):
         
         mask_idx = given_col_idx.to(torch.int)
         range_tensor = torch.arange(mask.shape[1]).unsqueeze(0).expand(self.num_envs, -1)
-        mask[range_tensor > mask_idx.unsqueeze(1).cpu()] = True
+
+        mask[range_tensor >= mask_idx.unsqueeze(1).cpu()] = True
         filtered_tensor = np.where(mask, planner_goal_cpu, 0)
         result = np.argmax(filtered_tensor == 1, axis=1)
 
@@ -621,7 +658,14 @@ class LeggedRobot(BaseTask):
         
         mask_idx = given_col_idx.to(torch.int)
         range_tensor = torch.arange(mask.shape[1]).unsqueeze(0).expand(self.num_envs, -1)
-        mask[range_tensor <= mask_idx.unsqueeze(1).cpu()] = True
+        mask[range_tensor < mask_idx.unsqueeze(1).cpu()] = True
+        no_true_rows = ~np.any(mask, axis=1)
+        mask[no_true_rows, 0] = True
+        # if not mask.any():
+        #     mask[range_tensor <= mask_idx.unsqueeze(1).cpu()] = True
+        # mask[range_tensor >= mask_idx.unsqueeze(1).cpu()] = False
+        # import ipdb; ipdb.set_trace()
+
         filtered_tensor = np.where(mask, planner_goal_cpu, 0)
         result = np.where(filtered_tensor == 1, np.arange(filtered_tensor.shape[1]), 0).max(axis=1) #np.argmax(filtered_tensor == 1, axis=1)
 
@@ -1179,7 +1223,9 @@ class LeggedRobot(BaseTask):
     
     def _draw_goals(self):
         sphere_geom = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(1, 0, 0))
-        sphere_geom_cur = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 1))
+        sphere_geom_cur = [gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 1)),gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 0))]
+        sphere_geom_prev = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(1, 1, 1))
+        
         sphere_geom_reached = gymutil.WireframeSphereGeometry(self.cfg.env.next_goal_threshold, 32, 32, None, color=(0, 1, 0))
         goals = self.terrain_goals[self.terrain_levels[self.lookat_id], self.terrain_types[self.lookat_id]].cpu().numpy()
         for i, goal in enumerate(goals):
@@ -1187,13 +1233,20 @@ class LeggedRobot(BaseTask):
             pts = (goal_xy/self.terrain.cfg.horizontal_scale).astype(int)
             goal_z = self.height_samples[pts[0], pts[1]].cpu().item() * self.terrain.cfg.vertical_scale
             pose = gymapi.Transform(gymapi.Vec3(goal[0], goal[1], goal_z), r=None)
+            prev_planner_goals = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+            prev_planner_goal = prev_planner_goals[self.lookat_id].cpu().numpy()
+            pose_prev = gymapi.Transform(gymapi.Vec3(prev_planner_goal[0], prev_planner_goal[1], goal_z), r=None)
+
+
             if i == self.cur_goal_idx[self.lookat_id].cpu().item():
-                gymutil.draw_lines(sphere_geom_cur, self.gym, self.viewer, self.envs[self.lookat_id], pose)
+                # import ipdb; ipdb.set_trace()
+                gymutil.draw_lines(sphere_geom_cur[int(self.env_planner_goals[self.lookat_id, self.cur_goal_idx[self.lookat_id]].cpu().item())], self.gym, self.viewer, self.envs[self.lookat_id], pose)
                 if self.reached_goal_ids[self.lookat_id]:
                     gymutil.draw_lines(sphere_geom_reached, self.gym, self.viewer, self.envs[self.lookat_id], pose)
             else:
                 gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
-        
+            gymutil.draw_lines(sphere_geom_prev, self.gym, self.viewer, self.envs[self.lookat_id], pose_prev)
+
         if not self.cfg.depth.use_camera:
             sphere_geom_arrow = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(1, 0.35, 0.25))
             pose_robot = self.root_states[self.lookat_id, :3].cpu().numpy()
@@ -1201,8 +1254,25 @@ class LeggedRobot(BaseTask):
                 norm = torch.norm(self.target_pos_rel, dim=-1, keepdim=True)
                 target_vec_norm = self.target_pos_rel / (norm + 1e-5)
                 pose_arrow = pose_robot[:2] + 0.1*(i+3) * target_vec_norm[self.lookat_id, :2].cpu().numpy()
+
+                # get abs heading
+                
+
+                # target_vec_norm = target_pos_rel_prev / (norm + 1e-5)
+
+                next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+                prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+                target_vec_norm = self.compute_yaw_vector(next_planner_goal,prev_planner_goal,mode=1)
+                pose_arrow_prev = pose_robot[:2] + 0.1*(i+3) * target_vec_norm[self.lookat_id, :2].cpu().numpy()
+                pose_prev = gymapi.Transform(gymapi.Vec3(pose_arrow_prev[0], pose_arrow_prev[1], pose_robot[2]), r=None)
+                
+
                 pose = gymapi.Transform(gymapi.Vec3(pose_arrow[0], pose_arrow[1], pose_robot[2]), r=None)
                 gymutil.draw_lines(sphere_geom_arrow, self.gym, self.viewer, self.envs[self.lookat_id], pose)
+                sphere_geom_arrow_prev = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0, 0,0))
+
+                gymutil.draw_lines(sphere_geom_arrow_prev, self.gym, self.viewer, self.envs[self.lookat_id], pose_prev)
+
             
             sphere_geom_arrow = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0, 1, 0.5))
             for i in range(5):
@@ -1325,8 +1395,8 @@ class LeggedRobot(BaseTask):
     def _reward_lin_vel_z(self):
         rew = torch.square(self.base_lin_vel[:, 2])
         # originally *0.5, trying *0.0
-        rew[self.env_class != 17] *= 0.0
-        # rew[self.env_class != 17] *= 0.5
+        # rew[self.env_class != 17] *= 0.0
+        rew[self.env_class != 17] *= 0.5
 
         # mask = ~torch.isin(self.env_class, [17, 21])
         # mask = ~( (self.env_class == 17) | (self.env_class == 21) )
@@ -1348,6 +1418,11 @@ class LeggedRobot(BaseTask):
         # return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
         rew = torch.sum(torch.square(self.base_ang_vel[:, 1]).reshape((self.num_envs,1)), dim=1)
         rew[self.env_class != 17] *= 0.5
+        return rew
+    
+    def _reward_lin_vel_y(self):
+        # penalise for moving sideways
+        rew = torch.square(self.base_lin_vel[:, 1])
         return rew
      
     def _reward_orientation(self):
@@ -1378,7 +1453,7 @@ class LeggedRobot(BaseTask):
         # if self.cur_goal_idx[0] >= self.cfg.terrain.num_goals:
         #     dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
         dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
-        dof_error[self.env_class != 17] *= 0.0
+        # dof_error[self.env_class != 17] *= 0.0
 
         return dof_error
     
@@ -1417,6 +1492,8 @@ class LeggedRobot(BaseTask):
 
         # if planner_goal_heu <= self.cfg.rewards.goal_distace_reward_threshold:
         exp_reward[planner_goal_heu<self.cfg.rewards.goal_distace_reward_threshold] = torch.exp(-planner_goal_heu[planner_goal_heu<self.cfg.rewards.goal_distace_reward_threshold])
+        # if exp_reward[0] > 0:
+        #     print("distance exp reward: ", exp_reward[0], "planner_goal_heu is ", planner_goal_heu[0], "current pos is: ", cur_pos[0], "next planner goal is: ", next_planner_goal[0])
         return exp_reward
         # check if it is in the goal
         # if it is, then set goal to the next
@@ -1426,12 +1503,13 @@ class LeggedRobot(BaseTask):
         next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
         prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
 
+
         planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
 
-        abs_yaw =  self.compute_yaw(next_planner_goal, prev_planner_goal)
+        abs_yaw =  self.compute_yaw(next_planner_goal, prev_planner_goal,mode=1)
         # import ipdb; ipdb.set_trace()
 
-        abs_delta_yaw = abs_yaw - self.yaw
+        abs_delta_yaw = torch.abs(wrap_to_pi(abs_yaw - self.yaw))
 
         exp_reward = torch.zeros_like(planner_goal_heu)
 
@@ -1439,5 +1517,67 @@ class LeggedRobot(BaseTask):
         # if planner_goal_heu <= self.cfg.rewards.goal_distace_reward_threshold:
         exp_reward[planner_goal_heu<self.cfg.rewards.goal_yaw_reward_threshold] = torch.exp(-abs_delta_yaw[planner_goal_heu<self.cfg.rewards.goal_yaw_reward_threshold]/self.cfg.rewards.abs_yaw_sigma)
         return exp_reward
+        # check if it is in the goal
+        # if it is, then set goal to the next
+
+    def _reward_reach_planner_goals_yaw_tol(self):
+        # cur_pos = self.root_states[:, :3]
+        next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+
+
+        # planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
+
+        abs_yaw =  self.compute_yaw(next_planner_goal, prev_planner_goal,mode=1)
+        # import ipdb; ipdb.set_trace()
+
+        abs_delta_yaw = torch.abs(wrap_to_pi(abs_yaw - self.yaw))
+
+        exp_reward = torch.zeros_like(abs_yaw)
+
+        reached_boolean = self.planner_goal_reached.clone().detach()
+        self.planner_goal_reached = torch.zeros_like(self.planner_goal_reached)
+
+        
+        # if planner_goal_heu <= self.cfg.rewards.goal_distace_reward_threshold:
+        exp_reward[abs_delta_yaw <= self.cfg.rewards.yaw_tol] = torch.exp(-abs_delta_yaw[abs_delta_yaw <= self.cfg.rewards.yaw_tol]/self.cfg.rewards.abs_yaw_sigma) * reached_boolean[abs_delta_yaw <= self.cfg.rewards.yaw_tol]
+        return exp_reward
+        # check if it is in the goal
+        # if it is, then set goal to the next
+
+        # self.cur_goal_idx
+
+    def _reward_reach_planner_goals_yaw_tol_stages(self):
+        # cur_pos = self.root_states[:, :3]
+        next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+
+
+        # planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
+
+        abs_yaw =  self.compute_yaw(next_planner_goal, prev_planner_goal,mode=1)
+        # import ipdb; ipdb.set_trace()
+
+        abs_delta_yaw = torch.abs(wrap_to_pi(abs_yaw - self.yaw))
+
+        exp_reward = torch.zeros_like(abs_yaw)
+
+        reached_boolean = self.planner_goal_reached.clone().detach()
+        self.planner_goal_reached = torch.zeros_like(self.planner_goal_reached)
+
+        
+        # if planner_goal_heu <= self.cfg.rewards.goal_distace_reward_threshold:
+        exp_reward[abs_delta_yaw <= self.cfg.rewards.yaw_tol] = torch.exp(-abs_delta_yaw[abs_delta_yaw <= self.cfg.rewards.yaw_tol]/self.cfg.rewards.abs_yaw_sigma) * \
+            reached_boolean[abs_delta_yaw <= self.cfg.rewards.yaw_tol] * (self.cur_goal_idx[abs_delta_yaw <= self.cfg.rewards.yaw_tol] + 1).float()/self.cfg.terrain.num_goals
+        return exp_reward
+        # check if it is in the goal
+        # if it is, then set goal to the next
+
+    def _reward_reach_planner_goals_stages(self):
+        # next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        planner_goal_reward = self.planner_goal_reached.clone().detach() * (self.cur_goal_idx.float() + 1) / self.cfg.terrain.num_goals
+        self.planner_goal_reached = torch.zeros_like(self.planner_goal_reached)
+        # import ipdb;ipdb.set_trace()
+        return planner_goal_reward
         # check if it is in the goal
         # if it is, then set goal to the next
