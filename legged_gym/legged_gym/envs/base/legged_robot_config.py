@@ -188,10 +188,10 @@ class LeggedRobotCfg(BaseConfig):
                         "large stairs up": 0.,
                         "large stairs down": 0.,
                         "parkour": 0.0,
-                        "parkour_hurdle": 0.2,
+                        "parkour_hurdle": 0.0,
                         "parkour_flat": 0.2,
-                        "parkour_step": 0.2,
-                        "parkour_gap": 0.2,
+                        "parkour_step": 0.0,
+                        "parkour_gap": 0.0,
                         "demo": 0.0,
                         "parkour_hurdle_edge": 0.0,}
         terrain_proportions = list(terrain_dict.values())
@@ -375,6 +375,7 @@ class LeggedRobotCfg(BaseConfig):
         goal_yaw_reward_threshold = 0.5
         abs_yaw_sigma = 1.0
         yaw_tol = np.pi/9
+        abs_yaw_tol = np.pi/100
 
 
 

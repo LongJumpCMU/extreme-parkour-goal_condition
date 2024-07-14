@@ -209,8 +209,13 @@ class LeggedRobot(BaseTask):
         next_flag = self.reach_goal_timer > self.cfg.env.reach_goal_delay / self.dt
         self.cur_goal_idx[next_flag] += 1
         self.reach_goal_timer[next_flag] = 0
-
-        self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold
+        # import ipdb; ipdb.set_trace()
+        self.prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        self.abs_yaw =  self.compute_yaw(next_planner_goal, self.prev_planner_goal,mode=1)
+        abs_delta_yaw = wrap_to_pi(self.abs_yaw - self.yaw)
+        self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), (abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol))
+        # self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold and abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol
         # check if this is a planner goal, if it is then set it to smth else
         # import ipdb; ipdb.set_trace()
         
@@ -1389,7 +1394,13 @@ class LeggedRobot(BaseTask):
         return rew
 
     def _reward_tracking_yaw(self):
-        rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
+        cur_pos = self.root_states[:, :3]
+        next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
+        
+        rew = torch.zeros_like(planner_goal_heu)
+
+        rew[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold] = torch.exp(-torch.abs(self.target_yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold] - self.yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold]))
         return rew
     
     def _reward_lin_vel_z(self):
