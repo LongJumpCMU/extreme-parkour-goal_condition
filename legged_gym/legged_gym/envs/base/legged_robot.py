@@ -210,6 +210,12 @@ class LeggedRobot(BaseTask):
         self.cur_goal_idx[next_flag] += 1
         self.reach_goal_timer[next_flag] = 0
 
+        self.prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        self.abs_yaw =  self.compute_yaw(next_planner_goal, self.prev_planner_goal,mode=1)
+        abs_delta_yaw = torch.abs(wrap_to_pi(self.abs_yaw - self.yaw))
+        # self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), (abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol)) # for forcing heading!!!!!!!!!
+        
         self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold
         # check if this is a planner goal, if it is then set it to smth else
         # import ipdb; ipdb.set_trace()
@@ -1389,14 +1395,23 @@ class LeggedRobot(BaseTask):
         return rew
 
     def _reward_tracking_yaw(self):
+        cur_pos = self.root_states[:, :3]
+        next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
         rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
+        # rew = torch.zeros_like(planner_goal_heu)
+
+        # rew[planner_goal_heu<=self.cfg.rewards.goal_distace_reward_threshold] *= 0.0 #torch.exp(-torch.abs(self.target_yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold] - self.yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold])) # for forcing heading!!!!!!!!!!!!!!!!!!!!!!!!!
         return rew
+    # def _reward_tracking_yaw(self):
+    #     rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
+    #     return rew
     
     def _reward_lin_vel_z(self):
         rew = torch.square(self.base_lin_vel[:, 2])
         # originally *0.5, trying *0.0
-        # rew[self.env_class != 17] *= 0.0
-        rew[self.env_class != 17] *= 0.5
+        # rew[self.env_class != 17] *= 0.5    # Originally
+        rew[torch.logical_and(self.env_class != 17, self.env_class != 21)] *= 0.0
 
         # mask = ~torch.isin(self.env_class, [17, 21])
         # mask = ~( (self.env_class == 17) | (self.env_class == 21) )
@@ -1423,11 +1438,17 @@ class LeggedRobot(BaseTask):
     def _reward_lin_vel_y(self):
         # penalise for moving sideways
         rew = torch.square(self.base_lin_vel[:, 1])
+        # Only for hurfle-edged terrain
+        rew[self.env_class != 21] *= 0.0
+
         return rew
      
     def _reward_orientation(self):
         rew = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
-        rew[self.env_class != 17] = 0.
+        # rew[self.env_class != 17] = 0.    ### Originally
+
+        rew[torch.logical_and(self.env_class != 17, self.env_class != 21)] = 0.
+
         return rew
 
     def _reward_dof_acc(self):
@@ -1453,7 +1474,8 @@ class LeggedRobot(BaseTask):
         # if self.cur_goal_idx[0] >= self.cfg.terrain.num_goals:
         #     dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
         dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
-        # dof_error[self.env_class != 17] *= 0.0
+        # dof_error[self.env_class != 17] *= 0.0  # Originally
+        dof_error[torch.logical_and(self.env_class != 17, self.env_class != 21)] = 0.0
 
         return dof_error
     

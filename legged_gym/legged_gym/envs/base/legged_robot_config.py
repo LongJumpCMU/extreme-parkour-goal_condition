@@ -193,7 +193,7 @@ class LeggedRobotCfg(BaseConfig):
                         "parkour_step": 0.2,
                         "parkour_gap": 0.2,
                         "demo": 0.0,
-                        "parkour_hurdle_edge": 0.0,}
+                        "parkour_hurdle_edge": 0.2,}
         terrain_proportions = list(terrain_dict.values())
         
         # trimesh only:
@@ -342,7 +342,7 @@ class LeggedRobotCfg(BaseConfig):
             tracking_yaw = 0.5 # 0.5 original
             # regularization rewards
             lin_vel_z =-1.0
-            # lin_vel_y = -1.0
+            lin_vel_y = -0.05
             ang_vel_xy = -0.05
             # ang_vel_x = -0.05 # was -0.05 originally
             # ang_vel_y = -0.05 # was -0.05 originally
@@ -375,6 +375,7 @@ class LeggedRobotCfg(BaseConfig):
         goal_yaw_reward_threshold = 0.5
         abs_yaw_sigma = 1.0
         yaw_tol = np.pi/9
+        abs_yaw_tol = np.pi/100
 
 
 
