@@ -342,7 +342,7 @@ class LeggedRobotCfg(BaseConfig):
             tracking_yaw = 0.5 # 0.5 original
             # regularization rewards
             lin_vel_z =-1.0
-            lin_vel_y = -0.05
+            lin_vel_y = -10
             ang_vel_xy = -0.05
             # ang_vel_x = -0.05 # was -0.05 originally
             # ang_vel_y = -0.05 # was -0.05 originally

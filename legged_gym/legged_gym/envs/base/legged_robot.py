@@ -215,6 +215,8 @@ class LeggedRobot(BaseTask):
         self.abs_yaw =  self.compute_yaw(next_planner_goal, self.prev_planner_goal,mode=1)
         abs_delta_yaw = torch.abs(wrap_to_pi(self.abs_yaw - self.yaw))
         # self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), (abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol)) # for forcing heading!!!!!!!!!
+        # self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), torch.logical_or(abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol, self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx] == 0)) # for forcing heading!!!!!!!!!
+
         
         self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold
         # check if this is a planner goal, if it is then set it to smth else
