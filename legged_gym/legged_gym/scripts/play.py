@@ -92,7 +92,11 @@ def play(args):
                                     "parkour_step": 0.0,
                                     "parkour_gap": 0.0, 
                                     "demo": 0.0, 
-                                    "parkour_hurdle_edge": 0.2,}
+                                    "parkour_hurdle_edge": 0.0,
+                                    "parkour_step_curated":0.0,
+                                    "parkour_wall_edge_curated": 0.0,
+                                    "parkour_gap_edge": 0.0,
+                                    "parkour_wall_edge": 0.2}
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = False
