@@ -1399,11 +1399,11 @@ class LeggedRobot(BaseTask):
     def _reward_tracking_yaw(self):
         cur_pos = self.root_states[:, :3]
         next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
-        planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
-        rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
+        planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal) 
+        rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))                                        # Do we need wrap_to_pi here?
         # rew = torch.zeros_like(planner_goal_heu)
 
-        # rew[planner_goal_heu<=self.cfg.rewards.goal_distace_reward_threshold] *= 0.0 #torch.exp(-torch.abs(self.target_yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold] - self.yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold])) # for forcing heading!!!!!!!!!!!!!!!!!!!!!!!!!
+        # rew[planner_goal_heu<=self.cfg.rewards.goal_distace_reward_threshold] *= 0.0 
         return rew
     # def _reward_tracking_yaw(self):
     #     rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))

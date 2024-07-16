@@ -338,11 +338,11 @@ class LeggedRobotCfg(BaseConfig):
 
         class scales:
             # tracking rewards
-            tracking_goal_vel = 1.5 #1.5
-            tracking_yaw = 0.5 # 0.5 original
+            tracking_goal_vel = 3.0 #1.5
+            tracking_yaw = 2#0.5 # 0.5 original
             # regularization rewards
             lin_vel_z =-1.0
-            lin_vel_y = -10
+            lin_vel_y = -5
             ang_vel_xy = -0.05
             # ang_vel_x = -0.05 # was -0.05 originally
             # ang_vel_y = -0.05 # was -0.05 originally
