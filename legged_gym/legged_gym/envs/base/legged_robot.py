@@ -1394,6 +1394,7 @@ class LeggedRobot(BaseTask):
         target_vec_norm = self.target_pos_rel / (norm + 1e-5)
         cur_vel = self.root_states[:, 7:9]
         rew = torch.minimum(torch.sum(target_vec_norm * cur_vel, dim=-1), self.commands[:, 0]) / (self.commands[:, 0] + 1e-5)
+        # rew[self.env_class == 25] *= 5
         return rew
 
     def _reward_tracking_yaw(self):
@@ -1401,6 +1402,7 @@ class LeggedRobot(BaseTask):
         next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
         planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
         rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
+        rew[self.env_class == 25] *= 0.5
         # rew = torch.zeros_like(planner_goal_heu)
 
         # rew[planner_goal_heu<=self.cfg.rewards.goal_distace_reward_threshold] *= 0.0 #torch.exp(-torch.abs(self.target_yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold] - self.yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold])) # for forcing heading!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1413,7 +1415,7 @@ class LeggedRobot(BaseTask):
         rew = torch.square(self.base_lin_vel[:, 2])
         # originally *0.5, trying *0.0
         # rew[self.env_class != 17] *= 0.5    # Originally
-        rew[torch.logical_and(self.env_class != 17, self.env_class != 21)] *= 0.0
+        rew[torch.logical_and(torch.logical_and(self.env_class != 17, self.env_class != 21), self.env_class != 25)] *= 0.0
 
         # mask = ~torch.isin(self.env_class, [17, 21])
         # mask = ~( (self.env_class == 17) | (self.env_class == 21) )
@@ -1449,7 +1451,7 @@ class LeggedRobot(BaseTask):
         rew = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
         # rew[self.env_class != 17] = 0.    ### Originally
 
-        rew[torch.logical_and(self.env_class != 17, self.env_class != 21)] = 0.
+        rew[torch.logical_and(torch.logical_and(self.env_class != 17, self.env_class != 21), self.env_class != 25)] = 0.
 
         return rew
 
@@ -1457,7 +1459,10 @@ class LeggedRobot(BaseTask):
         return torch.sum(torch.square((self.last_dof_vel - self.dof_vel) / self.dt), dim=1)
 
     def _reward_collision(self):
-        return torch.sum(1.*(torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1)
+        # return torch.sum(1.*(torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1)
+        rew = torch.sum(1.*(torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1)
+        rew[self.env_class == 25] *= 5
+        return rew
 
     def _reward_action_rate(self):
         return torch.norm(self.last_actions - self.actions, dim=1)
@@ -1477,7 +1482,7 @@ class LeggedRobot(BaseTask):
         #     dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
         dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
         # dof_error[self.env_class != 17] *= 0.0  # Originally
-        dof_error[torch.logical_and(self.env_class != 17, self.env_class != 21)] = 0.0
+        dof_error[torch.logical_and(torch.logical_and(self.env_class != 17, self.env_class != 21), self.env_class != 25)] = 0.0
 
         return dof_error
     

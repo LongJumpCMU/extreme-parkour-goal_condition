@@ -407,7 +407,7 @@ class Terrain:
             parkour_hurdle_edge_curated_terrain(terrain,
                                    num_stones=(self.num_goals-2)//3,
                                    stone_len=0.1+0.3*difficulty,
-                                   hurdle_height_range=[0.7, 2.0],
+                                   hurdle_height_range=[1.0, 2.0],
                                    pad_height=0,
                                    y_range=self.cfg.y_range,
                                    half_valid_width=[0.45, 1],
@@ -450,9 +450,9 @@ class Terrain:
             #                        measured_points_y=self.cfg.measured_points_y
             #                        )
             parkour_hurdle_edge_curated_terrain(terrain,
-                                   num_stones=self.num_goals-3,
+                                   num_stones=self.num_goals-2,
                                    stone_len=0.1+0.3*difficulty,
-                                   hurdle_height_range=[0.7, 2.0],
+                                   hurdle_height_range=[1.0, 2.0],
                                    pad_height=0,
                                    y_range=self.cfg.y_range,
                                    half_valid_width=[0.45, 1],
@@ -1051,7 +1051,7 @@ def parkour_hurdle_edge_curated_terrain(terrain,
     if not self_adjust:
         goals = np.zeros((num_stones*3+2, 2))
     else:
-        goals = np.zeros((num_stones+3, 2))
+        goals = np.zeros((num_stones+2, 2))
     terrain.planner_goals = np.ones(goals.shape[0])
     # terrain.height_field_raw[:] = -200
     
@@ -1167,7 +1167,7 @@ def parkour_hurdle_edge_curated_terrain(terrain,
                 terrain.planner_goals[i*3+2] = 0
                 terrain.planner_goals[i*3+3] = 0
         elif i <= num_stones:
-            goals[i+1] = [goal_before_x, goal_before_y]#[goal_before_x, goal_before_y]
+            goals[i] = [goal_before_x, goal_before_y]#[goal_before_x, goal_before_y]
 
         # goals[i*2+2] = [goal_after_x, goal_after_y]
         # import ipdb; ipdb.set_trace()
@@ -1237,17 +1237,19 @@ def parkour_step_terrain(terrain,
     terrain.planner_goals = np.ones(goals.shape[0])
     prev_i = 0
     for i in range(num_stones):
-        prev_i = i
+        
         rand_x = np.random.randint(dis_x_min, dis_x_max)
         rand_y = np.random.randint(dis_y_min, dis_y_max)
         if i < num_stones // 2:
             stair_height += step_height
             if step_mode=="curated":
-                terrain.planner_goals[i] = 0
+                terrain.planner_goals[i+1] = 0
         elif i > num_stones // 2:
-            if prev_i <= num_stones//2:
-                terrain.planner_goals[prev_i] = 1
-            terrain.planner_goals[i] = 0
+            if step_mode=="curated":
+                terrain.planner_goals[i+1] = 0
+                if prev_i <= num_stones//2:
+                    terrain.planner_goals[prev_i+1] = 1
+                
             stair_height -= step_height
         terrain.height_field_raw[dis_x:dis_x+rand_x, ] = stair_height
         dis_x += rand_x
@@ -1256,6 +1258,7 @@ def parkour_step_terrain(terrain,
         
         last_dis_x = dis_x
         goals[i+1] = [dis_x-rand_x//2, mid_y+rand_y]
+        prev_i = i
     final_dis_x = dis_x + np.random.randint(dis_x_min, dis_x_max)
     # import ipdb; ipdb.set_trace()
     if final_dis_x > terrain.width:
