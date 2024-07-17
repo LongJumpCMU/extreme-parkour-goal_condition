@@ -1402,7 +1402,7 @@ class LeggedRobot(BaseTask):
         next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
         planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
         rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
-        rew[self.env_class == 25] *= 0.5
+        rew[torch.logical_or(torch.logical_or(self.env_class == 25,self.env_class == 24),self.env_class == 21)] *= 0.5
         # rew = torch.zeros_like(planner_goal_heu)
 
         # rew[planner_goal_heu<=self.cfg.rewards.goal_distace_reward_threshold] *= 0.0 #torch.exp(-torch.abs(self.target_yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold] - self.yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold])) # for forcing heading!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1461,7 +1461,9 @@ class LeggedRobot(BaseTask):
     def _reward_collision(self):
         # return torch.sum(1.*(torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1)
         rew = torch.sum(1.*(torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1)
-        rew[self.env_class == 25] *= 5
+        # rew[self.env_class == 25] *= 5
+        rew[torch.logical_or(torch.logical_or(self.env_class == 25,self.env_class == 24),self.env_class == 21)] *= 5
+
         return rew
 
     def _reward_action_rate(self):
