@@ -196,8 +196,9 @@ class LeggedRobotCfg(BaseConfig):
                         "parkour_hurdle_edge": 0.2,
                         "parkour_step_curated_terrain": 0.0,
                         "parkour_wall_edge_curated": 0.0,
-                        "parkour_gap_edge": 0.0,
-                        "parkour_wall_edge": 0.2}
+                        "parkour_gap_edge": 0.2,
+                        "parkour_wall_edge": 0.2,
+                        "parkour_flat_stop": 0.2}
         terrain_proportions = list(terrain_dict.values())
         
         # trimesh only:
@@ -279,6 +280,7 @@ class LeggedRobotCfg(BaseConfig):
 
     class domain_rand:
         randomize_friction = True
+        standstill_rand = 0.3 #0.1
         friction_range = [0.6, 2.]
         randomize_base_mass = True
         added_mass_range = [0., 3.]
@@ -344,6 +346,7 @@ class LeggedRobotCfg(BaseConfig):
             # tracking rewards
             tracking_goal_vel = 1.5 #1.5
             tracking_yaw = 0.5 # 0.5 original
+            standstill = -10 # -100
             # regularization rewards
             lin_vel_z =-1.0
             lin_vel_y = -10
