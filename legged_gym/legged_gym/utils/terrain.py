@@ -420,18 +420,6 @@ class Terrain:
         elif choice < self.proportions[23]:
             # gap edge terrain
             idx = 24
-            # parkour_gap_edge_terrain(terrain,
-            #                     num_gaps=self.num_goals - 2,
-            #                     gap_size=0.1 + 0.7 * difficulty,
-            #                     gap_depth=[0.2, 1],
-            #                     pad_height=0,
-            #                     x_range=[0.8, 1.5],
-            #                     y_range=self.cfg.y_range,
-            #                     half_valid_width=[0.6, 1.2],
-            #                     measured_points_x=self.cfg.measured_points_x,
-            #                     measured_points_y=self.cfg.measured_points_y
-            #                     # flat=True
-            #                     )
             parkour_hurdle_edge_curated_terrain(terrain,
                                    num_stones=self.num_goals-2,
                                    stone_len=0.1+0.7*difficulty,
@@ -452,17 +440,6 @@ class Terrain:
             # import ipdb; ipdb.set_trace()
 
             idx = 25
-            # parkour_hurdle_edge_terrain(terrain,
-            #                        num_stones=self.num_goals//2-1,
-            #                        stone_len=0.1+0.3*difficulty,
-            #                        hurdle_height_range=[0.1+0.1*difficulty, 0.15+0.15*difficulty],
-            #                        pad_height=0,
-            #                        y_range=self.cfg.y_range,
-            #                        half_valid_width=[0.45, 1],
-            #                        flat=True,
-            #                        measured_points_x=self.cfg.measured_points_x,
-            #                        measured_points_y=self.cfg.measured_points_y
-            #                        )
             parkour_hurdle_edge_curated_terrain(terrain,
                                    num_stones=self.num_goals-2,
                                    stone_len=0.1+0.3*difficulty,
@@ -488,6 +465,64 @@ class Terrain:
                                    y_range=self.cfg.y_range,
                                    half_valid_width=[0.45, 1],
                                    flat=True
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[26]:
+            # import ipdb; ipdb.set_trace()
+
+            idx = 27
+            # wall_edge_distracted_hurdle
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.3*difficulty,
+                                   hurdle_height_range=[1.0, 2.0],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[0.1,0.7]
+                                   )
+            self.add_roughness(terrain)
+
+        elif choice < self.proportions[27]:
+            # import ipdb; ipdb.set_trace()
+
+            idx = 28
+            # wall_edge_distracted_gap
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.3*difficulty,
+                                   hurdle_height_range=[1.0, 2.0],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[-0.7,-0.2]
+                                   )
+            self.add_roughness(terrain)
+        
+        elif choice < self.proportions[28]:
+            # gap_edge_distracted_hurdle
+            idx = 29
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[-1.0, -0.2],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[0.1,0.7]
                                    )
             self.add_roughness(terrain)
         # np.set_printoptions(precision=2)
@@ -1072,7 +1107,10 @@ def parkour_hurdle_edge_curated_terrain(terrain,
                            measured_points_x=[-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 1.2],
                            measured_points_y = [-0.75, -0.6, -0.45, -0.3, -0.15, 0., 0.15, 0.3, 0.45, 0.6, 0.75],
                            gap=False,
-                           self_adjust = False
+                           self_adjust = False,
+                           mixed = False,
+                           distration_range = [0.2,0.7],
+                           distration_width = [0.5,1.0]
                            ):
     # goals = np.zeros(((num_stones+1)*2, 2))
     if not self_adjust:
@@ -1081,7 +1119,10 @@ def parkour_hurdle_edge_curated_terrain(terrain,
         goals = np.zeros((num_stones+2, 2))
     terrain.planner_goals = np.ones(goals.shape[0])
     # terrain.height_field_raw[:] = -200
-    
+    dis_wdith_max = round(distration_width[1] / terrain.horizontal_scale)
+    dis_wdith_min = round(distration_width[0] / terrain.horizontal_scale)
+
+
     mid_y = terrain.length // 2  # length is actually y width
 
     dis_x_min = round(x_range[0] / terrain.horizontal_scale)
@@ -1118,9 +1159,12 @@ def parkour_hurdle_edge_curated_terrain(terrain,
     scenario_out_range = [[move_y_range, move_y_range/2],[move_y_range/2, move_y_range],[move_y_range/2, move_y_range/2]] # [goal_before, goal after]
 
     last_dis_x = dis_x
+    left_point_y = 0
+    right_point_y = 0
     
     robot_len_half = round(0.5 / terrain.horizontal_scale)
     robot_len_half_w = round(0.3 / 2.0 / terrain.horizontal_scale)
+    distraction_clearance = round(0.7 / terrain.horizontal_scale)
     prev_block_x = 0
     for i in range(num_stones+1):
 
@@ -1130,7 +1174,12 @@ def parkour_hurdle_edge_curated_terrain(terrain,
             x_lower_bound = round(dis_x+stone_len//2) + robot_len_half
 
 
-        
+        if mixed:
+            distration_height_max = round(distration_range[1] / terrain.vertical_scale)
+            distration_height_min = round(distration_range[0] / terrain.vertical_scale)
+            dis_wdith = np.random.randint(dis_wdith_min, dis_wdith_max)
+            terrain.height_field_raw[dis_x-stone_len//2:dis_x-stone_len//2+rand_x, sides[1]+distraction_clearance:sides[1]+distraction_clearance+dis_wdith] = np.random.randint(distration_height_min, distration_height_max)
+            terrain.height_field_raw[dis_x-stone_len//2:dis_x-stone_len//2+rand_x, sides[0]-distraction_clearance-dis_wdith:sides[0]-distraction_clearance] = np.random.randint(distration_height_min, distration_height_max)
         dis_x += rand_x
 
         sides = [mid_y+rand_y-half_valid_width, mid_y+rand_y+half_valid_width]
@@ -1149,7 +1198,6 @@ def parkour_hurdle_edge_curated_terrain(terrain,
         x_lower_bound_y = bound + round(scenario_out_range[i%len(scenario_out_range)][0])*sign - sign*move_y_range//2
         x_upper_bound_y = bound - round(scenario_out_range[i%len(scenario_out_range)][0])*sign + sign*move_y_range//2
         bound = sides[scenario_sides]
-        
         
         
         
@@ -1201,6 +1249,9 @@ def parkour_hurdle_edge_curated_terrain(terrain,
         elif i <= num_stones:
             goals[i] = [goal_before_x, goal_before_y]#[goal_before_x, goal_before_y]
 
+
+        
+
         # goals[i*2+2] = [goal_after_x, goal_after_y]
         # import ipdb; ipdb.set_trace()
         
@@ -1227,6 +1278,9 @@ def parkour_hurdle_edge_curated_terrain(terrain,
     terrain.height_field_raw[:, -pad_width:] = pad_height
     terrain.height_field_raw[:pad_width, :] = pad_height
     terrain.height_field_raw[-pad_width:, :] = pad_height
+
+    
+
 
 def parkour_step_terrain(terrain,
                            platform_len=2.5, 
