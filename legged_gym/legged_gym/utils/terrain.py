@@ -525,10 +525,282 @@ class Terrain:
                                    distration_range=[0.1,0.7]
                                    )
             self.add_roughness(terrain)
+
+        elif choice < self.proportions[29]:
+            # "gap_edge_distracted_gap": 0.0,
+            idx = 30
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[-1.0, -0.2],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[-0.7,-0.2]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[30]:
+            # "hurdle_edge_distracted_hurdle": 0.0,
+    
+            idx = 31
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.3*difficulty,
+                                   hurdle_height_range=[0.1+0.1*difficulty, 0.15+0.15*difficulty],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[0.1,0.7]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[31]:
+            # "wall_edge_distracted_wall": 0.0,
+            idx = 32
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                    hurdle_height_range=[1.0, 2.0],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[1.0, 2.0]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[32]:
+            # "hurdle_edge_distracted_gap": 0.0,
+            idx = 33
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[0.1+0.1*difficulty, 0.15+0.15*difficulty],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[-0.7,-0.2]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[33]:
+            # "hurdle_edge_distracted_wall": 0.0,
+            idx = 34
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[0.1+0.1*difficulty, 0.15+0.15*difficulty],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[1.0,2.0]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[34]:
+            # "gap_edge_distracted_wall": 0.0,
+            idx = 35
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[-1.0, -0.2],
+                                   pad_height=0,
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[1.0,2.0]
+                                   )
+            self.add_roughness(terrain)
+
+        elif choice < self.proportions[35]:
+            # gap_distracted_hurdle
+            idx = 36
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[-1.0, -0.2],
+                                   pad_height=0,
+                                   x_range=[1.5, 2.4],
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.4, 0.8],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[0.1,0.7],
+                                   edge=False,
+                                #    distraction_clearance = 0.1,
+                                   distraction_clearance_range=[0.25,0.5]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[36]:
+            # gap_distracted_gap
+            idx = 37
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[-1.0, -0.2],
+                                   pad_height=0,
+                                   x_range=[1.5, 2.4],
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.4, 0.8],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[-0.7,-0.2],
+                                   edge=False,
+                                #    distraction_clearance = 0.1,
+                                   distraction_clearance_range=[0.25,0.5]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[37]:
+            # hurdle_distracted_hurdle
+            idx = 38
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[0.1,0.7],
+                                   pad_height=0,
+                                   x_range=[1.5, 2.4],
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.4, 0.8],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[0.1,0.7],
+                                   edge=False,
+                                #    distraction_clearance = 0.1,
+                                   distraction_clearance_range=[0.25,0.5]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[38]:
+            # hurdle_distracted_gap
+            idx = 39
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[0.1,0.7],
+                                   pad_height=0,
+                                   x_range=[1.5, 2.4],
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.4, 0.8],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[-0.7,-0.2],
+                                   edge=False,
+                                #    distraction_clearance = 0.1,
+                                   distraction_clearance_range=[0.25,0.5]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[39]:
+            # hurdle_distracted_wall
+            idx = 40
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[0.1,0.7],
+                                   pad_height=0,
+                                   x_range=[1.5, 2.4],
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.4, 0.8],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[1.0,2.0],
+                                   edge=False,
+                                #    distraction_clearance = 0.1,
+                                   distraction_clearance_range=[0.25,0.5]
+                                   )
+            self.add_roughness(terrain)
+        elif choice < self.proportions[40]:
+            # gap_distracted_wall
+            idx = 41
+            parkour_hurdle_edge_curated_terrain(terrain,
+                                   num_stones=self.num_goals-2,
+                                   stone_len=0.1+0.7*difficulty,
+                                   hurdle_height_range=[-0.7,-0.2],
+                                   pad_height=0,
+                                   x_range=[1.5, 2.4],
+                                   y_range=self.cfg.y_range,
+                                   half_valid_width=[0.4, 0.8],
+                                   gap=True,
+                                   measured_points_x=self.cfg.measured_points_x,
+                                   measured_points_y=self.cfg.measured_points_y,
+                                   self_adjust=True,
+                                   mixed=True,
+                                   distration_range=[1.0,2.0],
+                                   edge=False,
+                                #    distraction_clearance = 0.1,
+                                   distraction_clearance_range=[0.25,0.5]
+                                   )
+            self.add_roughness(terrain)
+        # elif choice < self.proportions[41]:
+        #     # gap_distracted_hurdle
+        #     idx = 42
+        #     parkour_hurdle_edge_curated_terrain(terrain,
+        #                            num_stones=self.num_goals-2,
+        #                            stone_len=0.1+0.7*difficulty,
+        #                            hurdle_height_range=[-1.0, -0.2],
+        #                            pad_height=0,
+        # x_range=[1.5, 2.4],                           
+        # y_range=self.cfg.y_range,
+        #                            half_valid_width=[0.3, 0.7],
+        #                            gap=True,
+        #                            measured_points_x=self.cfg.measured_points_x,
+        #                            measured_points_y=self.cfg.measured_points_y,
+        #                            self_adjust=True,
+        #                            mixed=True,
+        #                            distration_range=[0.1,0.7],
+        #                            edge=False
+        #                            )
+        #     self.add_roughness(terrain)
         # np.set_printoptions(precision=2)
         # print(np.array(self.proportions), choice)
         terrain.idx = idx
         return terrain
+    
+    # "wall_distracted_gap": 0.0,
+    # "gap_distracted_hurdle": 0.0,
+    # "gap_distracted_gap": 0.0,
+    # "hurdle_distracted_hurdle": 0.0,
+    # "wall_distracted_wall": 0.0,
+    # "hurdle_distracted_gap": 0.0,
+    # "hurdle_distracted_wall": 0.0,
+    # "gap_distracted_wall": 0.0,
 
 
     def add_terrain_to_map(self, terrain, row, col):
@@ -1093,6 +1365,9 @@ def parkour_hurdle_edge_terrain(terrain,
     terrain.height_field_raw[:pad_width, :] = pad_height
     terrain.height_field_raw[-pad_width:, :] = pad_height
 
+def weighted_random_choice(num1, num2, prob):
+    choices = np.random.choice([num1, num2], p=[prob, 1-prob])
+    return choices
 def parkour_hurdle_edge_curated_terrain(terrain,
                            platform_len=2.5, 
                            platform_height=0., 
@@ -1110,7 +1385,9 @@ def parkour_hurdle_edge_curated_terrain(terrain,
                            self_adjust = False,
                            mixed = False,
                            distration_range = [0.2,0.7],
-                           distration_width = [0.5,1.0]
+                           distration_width = [0.5,1.0],
+                           edge = True,
+                           distraction_clearance_range = [0.7,0.8]
                            ):
     # goals = np.zeros(((num_stones+1)*2, 2))
     if not self_adjust:
@@ -1164,7 +1441,7 @@ def parkour_hurdle_edge_curated_terrain(terrain,
     
     robot_len_half = round(0.5 / terrain.horizontal_scale)
     robot_len_half_w = round(0.3 / 2.0 / terrain.horizontal_scale)
-    distraction_clearance = round(0.7 / terrain.horizontal_scale)
+    distraction_clearance = np.random.randint(round(distraction_clearance_range[0] / terrain.horizontal_scale), round(distraction_clearance_range[1] / terrain.horizontal_scale))
     prev_block_x = 0
     for i in range(num_stones+1):
 
@@ -1178,8 +1455,14 @@ def parkour_hurdle_edge_curated_terrain(terrain,
             distration_height_max = round(distration_range[1] / terrain.vertical_scale)
             distration_height_min = round(distration_range[0] / terrain.vertical_scale)
             dis_wdith = np.random.randint(dis_wdith_min, dis_wdith_max)
-            terrain.height_field_raw[dis_x-stone_len//2:dis_x-stone_len//2+rand_x, sides[1]+distraction_clearance:sides[1]+distraction_clearance+dis_wdith] = np.random.randint(distration_height_min, distration_height_max)
-            terrain.height_field_raw[dis_x-stone_len//2:dis_x-stone_len//2+rand_x, sides[0]-distraction_clearance-dis_wdith:sides[0]-distraction_clearance] = np.random.randint(distration_height_min, distration_height_max)
+            left_height = np.random.randint(distration_height_min, distration_height_max)
+            right_height = np.random.randint(distration_height_min, distration_height_max)
+            if edge == False:
+                left_height = weighted_random_choice(left_height, 0.0, 0.9)
+                right_height = weighted_random_choice(right_height, 0.0, 0.9)
+
+            terrain.height_field_raw[dis_x-stone_len//2:dis_x-stone_len//2+rand_x, sides[1]+distraction_clearance:sides[1]+distraction_clearance+dis_wdith] = left_height
+            terrain.height_field_raw[dis_x-stone_len//2:dis_x-stone_len//2+rand_x, sides[0]-distraction_clearance-dis_wdith:sides[0]-distraction_clearance] = right_height
         dis_x += rand_x
 
         sides = [mid_y+rand_y-half_valid_width, mid_y+rand_y+half_valid_width]
@@ -1247,7 +1530,11 @@ def parkour_hurdle_edge_curated_terrain(terrain,
                 terrain.planner_goals[i*3+2] = 0
                 terrain.planner_goals[i*3+3] = 0
         elif i <= num_stones:
-            goals[i] = [goal_before_x, goal_before_y]#[goal_before_x, goal_before_y]
+            if edge:
+                goals[i] = [goal_before_x, goal_before_y]#[goal_before_x, goal_before_y]
+            else:
+                goals[i] = [goal_before_x, mid_y+rand_y]
+
 
 
         

@@ -247,22 +247,20 @@ class LeggedRobot(BaseTask):
         self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), torch.logical_or(abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol, self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx] == 0)) # for forcing heading!!!!!!!!!
 
         # sampling plannergoals to have 0 vel
-        num1 = 0
-        num2 = 1
-        mask_stop_cmd = torch.logical_and(self.env_class==26,self.reached_goal_ids==True)
-        shape = (mask_stop_cmd.shape[0], 1)
+        # num1 = 0
+        # num2 = 1
+        # mask_stop_cmd = torch.logical_and(self.env_class==26,self.reached_goal_ids==True)
+        # shape = (mask_stop_cmd.shape[0], 1)
         
-        self.command_rand = self.weighted_random_choice(num1, num2, shape).to("cuda:0")
-        # self.commands[mask_stop_cmd,0]*=self.command_rand[mask_stop_cmd]
+        # self.command_rand = self.weighted_random_choice(num1, num2, shape).to("cuda:0")
         
 
-        self.stop_command_log[mask_stop_cmd] *= self.command_rand[mask_stop_cmd]
-        # import ipdb; ipdb.set_trace()
-        self.commands[:,:2]*=self.stop_command_log
+        # self.stop_command_log[mask_stop_cmd] *= self.command_rand[mask_stop_cmd]
+        # self.commands[:,:2]*=self.stop_command_log
         # print("stop cmd log is: ", self.stop_command_log, "goal idx is: ", self.cur_goal_idx)
-        # if torch.all(self.stop_command_log == 0):
-        #     import ipdb;ipdb.set_trace()
-        # import ipdb;ipdb.set_trace()
+        # # if torch.all(self.stop_command_log == 0):
+        # #     import ipdb;ipdb.set_trace()
+        # # import ipdb;ipdb.set_trace()
 
         # self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold
         # check if this is a planner goal, if it is then set it to smth else

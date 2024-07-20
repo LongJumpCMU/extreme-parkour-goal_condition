@@ -99,8 +99,26 @@ def play(args):
                                     "parkour_wall_edge": 0.0,
                                     "parkour_flat_stop": 0.0,
                                     "wall_edge_distracted_hurdle": 0.0,
-                                    "wall_edge_distracted_gap": 0.2,
-                                    "gap_edge_distracted_hurdle": 0.0}
+                                    "wall_edge_distracted_gap": 0.0,
+                                    "gap_edge_distracted_hurdle": 0.0,
+
+                                    "gap_edge_distracted_gap": 0.0,
+                                    "hurdle_edge_distracted_hurdle": 0.0,
+                                    "wall_edge_distracted_wall": 0.0,
+                                    "hurdle_edge_distracted_gap": 0.0,
+                                    "hurdle_edge_distracted_wall": 0.0,
+                                    "gap_edge_distracted_wall": 0.2,
+
+                                    "gap_distracted_hurdle": 0.0,
+                                    "gap_distracted_gap": 0.0,
+                                    "hurdle_distracted_hurdle": 0.0,
+                                    "hurdle_distracted_gap": 0.0,
+                                    "hurdle_distracted_wall": 0.0,
+                                    "gap_distracted_wall": 0.0,
+                                    # "gap_distracted_hurdle": 0.0,
+                                    }
+                                    
+
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = False
