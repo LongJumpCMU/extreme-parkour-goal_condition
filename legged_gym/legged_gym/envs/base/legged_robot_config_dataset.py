@@ -93,8 +93,11 @@ class LeggedRobotCfgDataset(BaseConfig):
         camera_terrain_num_rows = 10
         camera_terrain_num_cols = 20
 
-        position = [0.27, 0, 0.03]  # front camera
-        angle = [-5, 5]  # positive pitch down
+        position = [0.245+0.027, 0.0075, 0.072+0.02]
+
+
+        # angle = [-5, 5]  # positive pitch down original
+        angle = [0.5*180/np.pi, 0.54*180/np.pi]  # positive pitch down
 
         update_interval = 5  # 5 works without retraining, 8 worse
 

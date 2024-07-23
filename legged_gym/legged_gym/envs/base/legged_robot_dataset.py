@@ -586,8 +586,8 @@ class LeggedRobot_Dataset(BaseTask):
         """
         imu_obs = torch.stack((self.roll, self.pitch), dim=1)
         if self.global_counter % 5 == 0:
-            self.delta_yaw = self.target_yaw - self.yaw
-            self.delta_next_yaw = self.next_target_yaw - self.yaw
+            self.delta_yaw = wrap_to_pi(self.target_yaw - self.yaw)
+            self.delta_next_yaw = wrap_to_pi(self.next_target_yaw - self.yaw)
             cur_pos = self.root_states[:, :3]
             next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
             planner_yaw =  self.compute_yaw(next_planner_goal, self.root_states)
@@ -778,7 +778,7 @@ class LeggedRobot_Dataset(BaseTask):
                 self.measured_heights = self._get_heights()
         if self.cfg.domain_rand.push_robots and  (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
             self._push_robots()
-            def get_next_planner_goal(self, given_col_idx, planner_goals):
+    def get_next_planner_goal(self, given_col_idx, planner_goals):
         planner_goal_cpu = planner_goals.cpu()
         mask = np.zeros_like(planner_goal_cpu, dtype=bool)
         
