@@ -1,0 +1,21 @@
+{
+    "scandots_axis0": [-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 1.2],
+    "scandots_axis1": [-0.75, -0.6, -0.45, -0.3, -0.15, 0.0, 0.15, 0.3, 0.45, 0.6, 0.75],
+    "num_envs": 100,
+    "horizontal_scale": 0.05,
+    "vertical_scale": 0.005,
+    "max_height": 4,
+    "min_height": -4,
+    "img_path": "../../../../planning-project/data/png_envs/maze.png",
+    "saved_data_dir": "dataset",
+    "min_target_dis": 0.3, 
+    "min_ditch_spawn": -0.5,
+    "robot_clearance": 0.3,
+    "heading_divide": 5,
+    "max_wall_height": 1,
+    "min_wall_height": -10,
+    "collect_with_planner": false,
+    "data_file": "dataset.csv",
+    "add_roughness": false
+    
+}
