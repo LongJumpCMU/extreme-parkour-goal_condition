@@ -133,11 +133,30 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
             env_cfg.terrain.horizontal_scale = env_cfg.terrain.horizontal_scale_camera
             env_cfg.terrain.simplify_grid = True
             env_cfg.terrain.terrain_dict["parkour_hurdle"] = 0.2
-            env_cfg.terrain.terrain_dict["parkour_flat"] = 0.05
+            env_cfg.terrain.terrain_dict["parkour_flat"] = 0.1 # originally 0.05
             env_cfg.terrain.terrain_dict["parkour_gap"] = 0.2
             env_cfg.terrain.terrain_dict["parkour_step"] = 0.2
             # env_cfg.terrain.terrain_dict["demo"] = 0.15
             env_cfg.terrain.terrain_dict["parkour_hurdle_edge"] = 0.2
+
+            env_cfg.terrain.terrain_dict["parkour_hurdle_edge"] = 0.2
+            env_cfg.terrain.terrain_dict["parkour_wall_edge"] = 0.2
+            env_cfg.terrain.terrain_dict["wall_edge_distracted_hurdle"] = 0.2
+            env_cfg.terrain.terrain_dict["wall_edge_distracted_gap"] = 0.2
+            env_cfg.terrain.terrain_dict["gap_edge_distracted_hurdle"] = 0.2
+            env_cfg.terrain.terrain_dict["gap_edge_distracted_gap"] = 0.2
+            env_cfg.terrain.terrain_dict["hurdle_edge_distracted_hurdle"] = 0.2
+            env_cfg.terrain.terrain_dict["wall_edge_distracted_wall"] = 0.2
+            env_cfg.terrain.terrain_dict["hurdle_edge_distracted_gap"] = 0.2
+            env_cfg.terrain.terrain_dict["hurdle_edge_distracted_wall"] = 0.2
+            env_cfg.terrain.terrain_dict["gap_edge_distracted_wall"] = 0.2
+            env_cfg.terrain.terrain_dict["gap_distracted_hurdle"] = 0.2
+            env_cfg.terrain.terrain_dict["gap_distracted_gap"] = 0.2
+            env_cfg.terrain.terrain_dict["hurdle_distracted_hurdle"] = 0.2
+            env_cfg.terrain.terrain_dict["hurdle_distracted_gap"] = 0.2
+            env_cfg.terrain.terrain_dict["hurdle_distracted_wall"] = 0.2
+            env_cfg.terrain.terrain_dict["gap_distracted_wall"] = 0.2            
+
 
 
             env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())

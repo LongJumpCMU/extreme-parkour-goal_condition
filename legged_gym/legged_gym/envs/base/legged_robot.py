@@ -1448,7 +1448,12 @@ class LeggedRobot(BaseTask):
         next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
         planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
         rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
-        rew[torch.logical_or(torch.logical_or(self.env_class == 25,self.env_class == 24),self.env_class == 21)] *= 0.5
+
+        # edge terrains: 21,23,24,25,27-35
+        mask = torch.logical_or(torch.logical_or(torch.logical_or(self.env_class == 21,self.env_class == 23),torch.logical_or(self.env_class == 24,self.env_class == 25)),
+                                torch.logical_and(self.env_class >= 27,self.env_class <= 35))
+
+        rew[mask] *= 0.2 # was 0.5
         # rew = torch.zeros_like(planner_goal_heu)
 
         # rew[planner_goal_heu<=self.cfg.rewards.goal_distace_reward_threshold] *= 0.0 #torch.exp(-torch.abs(self.target_yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold] - self.yaw[planner_goal_heu>self.cfg.rewards.goal_distace_reward_threshold])) # for forcing heading!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1461,7 +1466,13 @@ class LeggedRobot(BaseTask):
         rew = torch.square(self.base_lin_vel[:, 2])
         # originally *0.5, trying *0.0
         # rew[self.env_class != 17] *= 0.5    # Originally
-        rew[torch.logical_and(torch.logical_and(self.env_class != 17, self.env_class != 21), self.env_class != 25)] *= 0.0
+        # walls: 21,25,27,28,32,34,35,40,41
+        mask = torch.logical_and(torch.logical_and(torch.logical_and(torch.logical_and(torch.logical_and(self.env_class != 17, self.env_class != 21), 
+                                                                                       torch.logical_and(self.env_class != 25,self.env_class != 27)), 
+                                                                                       torch.logical_and(self.env_class != 28, self.env_class != 32)), 
+                                                                                       torch.logical_and(self.env_class != 34, self.env_class != 35)), 
+                                                                                       torch.logical_and(self.env_class != 40, self.env_class != 41))
+        rew[mask] *= 0.0
 
         # mask = ~torch.isin(self.env_class, [17, 21])
         # mask = ~( (self.env_class == 17) | (self.env_class == 21) )
@@ -1472,11 +1483,11 @@ class LeggedRobot(BaseTask):
         return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
     
     def _reward_ang_vel_x(self):
-        # return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
-        # import ipdb;ipdb.set_trace()
-        rew = torch.sum(torch.square(self.base_ang_vel[:, 0]).reshape((self.num_envs,1)), dim=1)
-
-        rew[self.env_class != 17] *= 0.5
+        # 21, 31, 33, 34
+        rew = torch.square(self.base_ang_vel[:, 0])
+        
+        mask = torch.logical_and(torch.logical_and(self.env_class != 21, self.env_class != 31), torch.logical_and(self.env_class != 33,self.env_class != 34))
+        rew[mask] *= 0.0
         return rew
     
     def _reward_ang_vel_y(self):
@@ -1489,7 +1500,9 @@ class LeggedRobot(BaseTask):
         # penalise for moving sideways
         rew = torch.square(self.base_lin_vel[:, 1])
         # Only for hurfle-edged terrain
-        rew[self.env_class != 21] *= 0.0
+        # edge terrains: 21,23,24,25,27-35
+        mask = torch.logical_or(torch.logical_or(torch.logical_or(self.env_class == 21,self.env_class == 23),torch.logical_or(self.env_class == 24,self.env_class == 25)),torch.logical_and(self.env_class >= 27,self.env_class <= 35))
+        rew[mask] *= 10.0
 
         return rew
      
@@ -1507,9 +1520,12 @@ class LeggedRobot(BaseTask):
     def _reward_collision(self):
         # return torch.sum(1.*(torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1)
         rew = torch.sum(1.*(torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1)
-        # rew[self.env_class == 25] *= 5
-        rew[torch.logical_or(torch.logical_or(self.env_class == 25,self.env_class == 24),self.env_class == 21)] *= 5
 
+        # edge terrains: 21,23,24,25,27-35
+        mask = torch.logical_or(torch.logical_or(torch.logical_or(self.env_class == 21,self.env_class == 23),torch.logical_or(self.env_class == 24,self.env_class == 25)),
+                                torch.logical_and(self.env_class >= 27,self.env_class <= 35))
+
+        rew[mask] *= 5
         return rew
 
     def _reward_action_rate(self):
@@ -1530,7 +1546,9 @@ class LeggedRobot(BaseTask):
         #     dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
         dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
         # dof_error[self.env_class != 17] *= 0.0  # Originally
-        dof_error[torch.logical_and(torch.logical_and(self.env_class != 17, self.env_class != 21), self.env_class != 25)] = 0.0
+        # edge terrains: 21,23,24,25,27-35
+        mask = torch.logical_and(torch.logical_and(torch.logical_and(self.env_class != 21,self.env_class != 23),torch.logical_and(self.env_class != 24,self.env_class != 25)),torch.logical_and(self.env_class <= 27,self.env_class >= 35))
+        dof_error[torch.logical_and(self.env_class != 17, mask)] *= 0.0
 
         return dof_error
     
@@ -1538,7 +1556,10 @@ class LeggedRobot(BaseTask):
         # Penalize feet hitting vertical surfaces
         rew = torch.any(torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) >\
              4 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)
-        return rew.float()
+        rew = rew.float()
+        mask = torch.logical_or(torch.logical_or(self.env_class == 21, self.env_class == 31), torch.logical_or(self.env_class == 33,self.env_class == 34))
+        rew[mask] *= 3
+        return rew
 
     def _reward_feet_edge(self):
         feet_pos_xy = ((self.rigid_body_states[:, self.feet_indices, :2] + self.terrain.cfg.border_size) / self.cfg.terrain.horizontal_scale).round().long()  # (num_envs, 4, 2)
