@@ -1421,15 +1421,22 @@ class LeggedRobot_Dataset(BaseTask):
             self.terrain_goals = torch.from_numpy(np.zeros((general_shape[0],general_shape[1],len(self.target),general_shape[3]))).to(self.device).to(torch.float)
             self.terrain_goals[0,0,:,0:2] = torch.from_numpy(self.target[:,0:2]).to(self.device).to(torch.float)
             # self.terrain_goals = torch.from_numpy(np.array([self.target])).to(self.device).to(torch.float)
+            self.terrain_planner_goals = torch.from_numpy(self.terrain.planner_goals).to(self.device).to(torch.float)
             
             # self.env_goals = torch.zeros(self.num_envs, self.cfg.terrain.num_goals + self.cfg.env.num_future_goal_obs, 3, device=self.device, requires_grad=False)
             self.cfg.terrain.num_goals = self.terrain_goals.shape[2]
             self.env_goals = torch.zeros(self.num_envs, self.cfg.terrain.num_goals + self.cfg.env.num_future_goal_obs, 3, device=self.device, requires_grad=False)
+            self.env_planner_goals = torch.zeros(self.num_envs, self.cfg.terrain.num_goals + self.cfg.env.num_future_goal_obs, device=self.device, requires_grad=False)
             self.cur_goal_idx = torch.zeros(self.num_envs, device=self.device, requires_grad=False, dtype=torch.long)
             temp = self.terrain_goals[self.terrain_levels, self.terrain_types]
+            temp_planner_goal = self.terrain_planner_goals[self.terrain_levels, self.terrain_types]
+
             last_col = temp[:, -1].unsqueeze(1)
+            last_planner_col = temp_planner_goal[:, -1].unsqueeze(1)
+
             # import ipdb; ipdb.set_trace()
             self.env_goals[:] = torch.cat((temp, last_col.repeat(1, self.cfg.env.num_future_goal_obs, 1)), dim=1)[:]
+            self.env_planner_goals[:] = torch.cat((temp_planner_goal, last_planner_col.repeat(1, self.cfg.env.num_future_goal_obs)), dim=1)[:]
             self.cur_goals = self._gather_cur_goals()
             self.next_goals = self._gather_cur_goals(future=1)
 
@@ -1501,6 +1508,10 @@ class LeggedRobot_Dataset(BaseTask):
         bot_left_geom = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 0))
 
         sphere_geom = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(1, 0, 0))
+        sphere_geom_cur = [gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 1)),gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 0))]
+        sphere_geom_prev = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(1, 1, 1))
+
+        
 
         sphere_geom_cur = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 1))
         sphere_geom_reached = gymutil.WireframeSphereGeometry(self.cfg.env.next_goal_threshold, 32, 32, None, color=(0, 1, 0))
@@ -1511,8 +1522,13 @@ class LeggedRobot_Dataset(BaseTask):
             # import ipdb; ipdb.set_trace()
             goal_z = self.height_samples[pts[0], pts[1]].cpu().item() * self.terrain.cfg.vertical_scale
             pose = gymapi.Transform(gymapi.Vec3(goal[0], goal[1], goal_z), r=None)
+            prev_planner_goals = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+            prev_planner_goal = prev_planner_goals[self.lookat_id].cpu().numpy()
+            pose_prev = gymapi.Transform(gymapi.Vec3(prev_planner_goal[0], prev_planner_goal[1], goal_z), r=None)
+
             if i == self.cur_goal_idx[self.lookat_id].cpu().item():
-                gymutil.draw_lines(sphere_geom_cur, self.gym, self.viewer, self.envs[self.lookat_id], pose)
+                gymutil.draw_lines(sphere_geom_cur[int(self.env_planner_goals[self.lookat_id, self.cur_goal_idx[self.lookat_id]].cpu().item())], self.gym, self.viewer, self.envs[self.lookat_id], pose)
+                # gymutil.draw_lines(sphere_geom_cur, self.gym, self.viewer, self.envs[self.lookat_id], pose)
                 if self.reached_goal_ids[self.lookat_id]:
                     gymutil.draw_lines(sphere_geom_reached, self.gym, self.viewer, self.envs[self.lookat_id], pose)
             else:
@@ -1544,6 +1560,7 @@ class LeggedRobot_Dataset(BaseTask):
         # pose = gymapi.Transform(gymapi.Vec3(18, 0, 0), r=None)
         # gymutil.draw_lines(bot_left_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
 
+            gymutil.draw_lines(sphere_geom_prev, self.gym, self.viewer, self.envs[self.lookat_id], pose_prev)
 
         if not self.cfg.depth.use_camera:
             sphere_geom_arrow = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(1, 0.35, 0.25))
@@ -1552,9 +1569,19 @@ class LeggedRobot_Dataset(BaseTask):
                 norm = torch.norm(self.target_pos_rel, dim=-1, keepdim=True)
                 target_vec_norm = self.target_pos_rel / (norm + 1e-5)
                 pose_arrow = pose_robot[:2] + 0.1*(i+3) * target_vec_norm[self.lookat_id, :2].cpu().numpy()
+                next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+                prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+                target_vec_norm = self.compute_yaw_vector(next_planner_goal,prev_planner_goal,mode=1)
+                pose_arrow_prev = pose_robot[:2] + 0.1*(i+3) * target_vec_norm[self.lookat_id, :2].cpu().numpy()
+                pose_prev = gymapi.Transform(gymapi.Vec3(pose_arrow_prev[0], pose_arrow_prev[1], pose_robot[2]), r=None)
+
                 pose = gymapi.Transform(gymapi.Vec3(pose_arrow[0], pose_arrow[1], pose_robot[2]), r=None)
                 gymutil.draw_lines(sphere_geom_arrow, self.gym, self.viewer, self.envs[self.lookat_id], pose)
-            
+                sphere_geom_arrow_prev = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0, 0,0))
+
+                gymutil.draw_lines(sphere_geom_arrow_prev, self.gym, self.viewer, self.envs[self.lookat_id], pose_prev)
+
+
             # sphere_geom_arrow = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0, 1, 0.5))
             # for i in range(5):
             #     norm = torch.norm(self.next_target_pos_rel, dim=-1, keepdim=True)
@@ -1562,7 +1589,13 @@ class LeggedRobot_Dataset(BaseTask):
             #     pose_arrow = pose_robot[:2] + 0.2*(i+3) * target_vec_norm[self.lookat_id, :2].cpu().numpy()
             #     pose = gymapi.Transform(gymapi.Vec3(pose_arrow[0], pose_arrow[1], pose_robot[2]), r=None)
             #     gymutil.draw_lines(sphere_geom_arrow, self.gym, self.viewer, self.envs[self.lookat_id], pose)
-        
+            sphere_geom_arrow = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0, 1, 0.5))
+            for i in range(5):
+                norm = torch.norm(self.next_target_pos_rel, dim=-1, keepdim=True)
+                target_vec_norm = self.next_target_pos_rel / (norm + 1e-5)
+                pose_arrow = pose_robot[:2] + 0.2*(i+3) * target_vec_norm[self.lookat_id, :2].cpu().numpy()
+                pose = gymapi.Transform(gymapi.Vec3(pose_arrow[0], pose_arrow[1], pose_robot[2]), r=None)
+                gymutil.draw_lines(sphere_geom_arrow, self.gym, self.viewer, self.envs[self.lookat_id], pose)
     def _draw_feet(self):
         if hasattr(self, 'feet_at_edge'):
             non_edge_geom = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0, 1, 0))
