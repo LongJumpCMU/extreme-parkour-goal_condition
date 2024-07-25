@@ -405,7 +405,7 @@ def main(args):
                                 "cuda",
                                 "--num_envs",
                                 str(10),
-                                "--headless",
+                                # "--headless",
                             ]
                         )
         process.wait()

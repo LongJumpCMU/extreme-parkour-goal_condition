@@ -92,7 +92,7 @@ def play(args):
                                     "parkour_step": 0.0,
                                     "parkour_gap": 0.0, 
                                     "demo": 0.0, 
-                                    "parkour_hurdle_edge": 0.0,
+                                    "parkour_hurdle_edge": 0.2,
                                     "parkour_step_curated":0.0,
                                     "parkour_wall_edge_curated": 0.0,
                                     "parkour_gap_edge": 0.0,
@@ -107,7 +107,7 @@ def play(args):
                                     "wall_edge_distracted_wall": 0.0,
                                     "hurdle_edge_distracted_gap": 0.0,
                                     "hurdle_edge_distracted_wall": 0.0,
-                                    "gap_edge_distracted_wall": 0.2,
+                                    "gap_edge_distracted_wall": 0.0,
 
                                     "gap_distracted_hurdle": 0.0,
                                     "gap_distracted_gap": 0.0,

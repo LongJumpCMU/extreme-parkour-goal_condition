@@ -136,10 +136,7 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
             env_cfg.terrain.terrain_dict["parkour_flat"] = 0.05
             env_cfg.terrain.terrain_dict["parkour_gap"] = 0.2
             env_cfg.terrain.terrain_dict["parkour_step"] = 0.2
-            # env_cfg.terrain.terrain_dict["demo"] = 0.15
-            env_cfg.terrain.terrain_dict["parkour_hurdle_edge"] = 0.2
-
-
+            env_cfg.terrain.terrain_dict["demo"] = 0.15
             env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
         if env_cfg.depth.use_camera:
             env_cfg.terrain.y_range = [-0.1, 0.1]
@@ -160,6 +157,16 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
         if not args.delay and not args.resume and not args.use_camera and args.headless: # if train from scratch
             env_cfg.domain_rand.action_delay = True
             env_cfg.domain_rand.action_curr_step = env_cfg.domain_rand.action_curr_step_scratch
+        
+        assert(args.start is not None)
+        env_cfg.terrain.start = args.start
+        env_cfg.terrain.target = args.target
+        env_cfg.terrain.obstacle = args.obstacle
+        env_cfg.terrain.obstacle_block = args.obstacle_block
+        env_cfg.terrain.obs_choice = args.obs_choice
+        env_cfg.terrain.obs_num = args.num_obs
+        env_cfg.terrain.config_path = args.config_path
+
     if cfg_train is not None:
         if args.seed is not None:
             cfg_train.seed = args.seed
@@ -194,7 +201,7 @@ def get_args():
         {"name": "--headless", "action": "store_true", "default": False, "help": "Force display off at all times"},
         {"name": "--horovod", "action": "store_true", "default": False, "help": "Use horovod for multi-gpu training"},
         {"name": "--rl_device", "type": str, "default": "cuda:0", "help": 'Device used by the RL algorithm, (cpu, gpu, cuda:0, cuda:1 etc..)'},
-        {"name": "--num_envs", "type": int, "help": "Number of environments to create. Overrides config file if provided."},
+        {"name": "--num_envs", "type": int, "default": 1, "help": "Number of environments to create. Overrides config file if provided."},
         {"name": "--seed", "type": int, "help": "Random seed. Overrides config file if provided."},
         {"name": "--max_iterations", "type": int, "help": "Maximum number of training iterations. Overrides config file if provided."},
         {"name": "--device", "type": str, "default": "cuda:0", "help": 'Device for sim, rl, and graphics'},
@@ -222,7 +229,22 @@ def get_args():
         {"name": "--hitid", "type": str, "default": None, "help": "exptid fot hitting policy"},
 
         {"name": "--web", "action": "store_true", "default": False, "help": "if use web viewer"},
-        {"name": "--no_wandb", "action": "store_true", "default": False, "help": "no wandb"}
+        {"name": "--no_wandb", "action": "store_true", "default": False, "help": "no wandb"},
+        {"name": "--num_itr", "type": int, "default": 9, "help": "number of iterations to mean in dataset creation"},
+        {"name": "--data_file", "type": str, "default": "scenario_dataset", "help": "name of the file for dataset"},
+        # {"name": "--start", "nargs": '+', "type": float, "default": [-1.2,0], "help": "the starting position of the robot"},
+        # {"name": "--target", "nargs": '+', "type": float, "default": [0,0], "help": "the ending position of the robot"},
+        # {"name": "--heading", "type": float, "default": 0.0, "help": "heading of the robot"},
+        # {"name": "--obs_height", "type": float, "default": 2.0, "help": "height of the obstacle"}
+
+        {"name": "--start", "nargs": '+', "type": float, "default": [-1.2,0,0], "help": "the starting position of the robot"},
+        {"name": "--target", "nargs": '+', "type": float, "default": [0,0], "help": "the ending position of the robot"},
+        {"name": "--obstacle", "nargs": '+', "type": float, "default": [0,0,0], "help": "[l*w*h] of the obstacle"},
+        {"name": "--obs_choice", "type": int, "default": 0, "help": "obstacle choice"},
+        {"name": "--num_obs", "type": int, "default": 10, "help": "obstacle number choice"},
+        {"name": "--obstacle_block", "nargs": '+', "type": float, "default": [1.5,3,0.5], "help": "[l*w*h] of the block obstacle"},
+        {"name": "--img_path", "type": str, "default": "../../../../planning-project/data/png_envs/maze.png", "help": "path of the png file we read"},
+        {"name": "--config_path", "type": str, "default": "data_collection_configs/default_configs.json", "help": "the path for the config file"}
 
 
     ]
@@ -323,14 +345,23 @@ def parse_arguments(description="Isaac Gym Example", headless=False, no_graphics
             help_str = ""
             if "help" in argument:
                 help_str = argument["help"]
+            if "nargs" in argument:
+                if "type" in argument:
+                    if "default" in argument:
+                        parser.add_argument(argument["name"], nargs='+', type=argument["type"], default=argument["default"], help=help_str)
+                    else:
+                        parser.add_argument(argument["name"], nargs='+', type=argument["type"], help=help_str)
+                elif "action" in argument:
+                    parser.add_argument(argument["name"], nargs='+', action=argument["action"], help=help_str)
 
-            if "type" in argument:
-                if "default" in argument:
-                    parser.add_argument(argument["name"], type=argument["type"], default=argument["default"], help=help_str)
-                else:
-                    parser.add_argument(argument["name"], type=argument["type"], help=help_str)
-            elif "action" in argument:
-                parser.add_argument(argument["name"], action=argument["action"], help=help_str)
+            else:
+                if "type" in argument:
+                    if "default" in argument:
+                        parser.add_argument(argument["name"], type=argument["type"], default=argument["default"], help=help_str)
+                    else:
+                        parser.add_argument(argument["name"], type=argument["type"], help=help_str)
+                elif "action" in argument:
+                    parser.add_argument(argument["name"], action=argument["action"], help=help_str)
 
         else:
             print()

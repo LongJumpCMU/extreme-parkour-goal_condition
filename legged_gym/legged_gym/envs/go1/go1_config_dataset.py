@@ -91,7 +91,8 @@ class Go1DatasetCfg( LeggedRobotCfgDataset ):
         # file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_new_walktheseways_limitstest.urdf'
         # file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_new.urdf'
         # file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_new_a1_limitstest.urdf'
-        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_new_go1_limitstest.urdf'
+        # file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_new_go1_limitstest.urdf'
+        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_v_1_4.urdf'
         
         # file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/a1/urdf/a1.urdf'
         foot_name = "foot"
