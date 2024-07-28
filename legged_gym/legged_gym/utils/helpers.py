@@ -166,6 +166,7 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
         env_cfg.terrain.obs_choice = args.obs_choice
         env_cfg.terrain.obs_num = args.num_obs
         env_cfg.terrain.config_path = args.config_path
+        env_cfg.terrain.plot_goal_num = args.plot_mode
 
     if cfg_train is not None:
         if args.seed is not None:
@@ -242,9 +243,11 @@ def get_args():
         {"name": "--obstacle", "nargs": '+', "type": float, "default": [0,0,0], "help": "[l*w*h] of the obstacle"},
         {"name": "--obs_choice", "type": int, "default": 0, "help": "obstacle choice"},
         {"name": "--num_obs", "type": int, "default": 10, "help": "obstacle number choice"},
-        {"name": "--obstacle_block", "nargs": '+', "type": float, "default": [1.5,3,0.5], "help": "[l*w*h] of the block obstacle"},
+        {"name": "--obstacle_block", "nargs": '+', "type": float, "default": [1.5,3,0.25], "help": "[l*w*h] of the block obstacle"},
         {"name": "--img_path", "type": str, "default": "../../../../planning-project/data/png_envs/maze.png", "help": "path of the png file we read"},
-        {"name": "--config_path", "type": str, "default": "data_collection_configs/default_configs.json", "help": "the path for the config file"}
+        {"name": "--config_path", "type": str, "default": "data_collection_configs/default_configs.json", "help": "the path for the config file"},
+        {"name": "--plot_mode", "type": int, "default": 0, "help": "obstacle number choice"},
+
 
 
     ]

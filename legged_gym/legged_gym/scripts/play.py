@@ -92,7 +92,7 @@ def play(args):
                                     "parkour_step": 0.0,
                                     "parkour_gap": 0.0, 
                                     "demo": 0.0, 
-                                    "parkour_hurdle_edge": 0.2,
+                                    "parkour_hurdle_edge": 0.0,
                                     "parkour_step_curated":0.0,
                                     "parkour_wall_edge_curated": 0.0,
                                     "parkour_gap_edge": 0.0,
@@ -115,11 +115,13 @@ def play(args):
                                     "hurdle_distracted_gap": 0.0,
                                     "hurdle_distracted_wall": 0.0,
                                     "gap_distracted_wall": 0.0,
-                                    # "gap_distracted_hurdle": 0.0,
+                                    
+                                    "plot_terrain": 0.2,
                                     }
                                     
 
-    
+    if args.plot_mode != 0:
+        env_cfg.terrain.num_goals = args.plot_mode
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = False
     env_cfg.terrain.max_difficulty = True

@@ -52,6 +52,7 @@ from .legged_robot_config import LeggedRobotCfg
 from tqdm import tqdm
 import cv2
 import matplotlib.pyplot as plt
+import copy
 
 def euler_from_quaternion(quat_angle):
         """
@@ -115,6 +116,26 @@ class LeggedRobot(BaseTask):
         self.init_done = True
         self.global_counter = 0
         self.total_env_steps_counter = 0
+
+        self.fig = plt.figure()
+        self.ax1_plot = []
+        self.ax1_plot.append(self.fig.add_subplot(2,1,1))
+        self.ax1_plot.append(self.fig.add_subplot(2,1,2))
+        self.fig2 = plt.figure()
+        # self.ax1_plot2 = []
+        self.ax1_plot.append(self.fig2.add_subplot(1,1,1))
+        self.num_variable = 4
+        self.num_joints = 12
+        
+        self.time = [0]
+        self.joint_variables = torch.zeros((int(self.max_episode_length),self.num_variable,self.num_joints)) # energy, joint torque, joint vel, joint accel, 
+        self.energy = None
+        self.joint_vel_sub = torch.zeros(self.num_joints).to(self.device)
+        self.way_point_idx = [0]
+        self.prev_time = 0
+        self.all_times = torch.zeros((self.terrain_goals.shape[2]))
+        self.plot_goal_reached = False
+        self.goal_idenfication = 0
         
         # num1 = 0
         # num2 = 1
@@ -233,6 +254,17 @@ class LeggedRobot(BaseTask):
 
         self.gym.end_access_image_tensors(self.sim)
 
+    def reset_plot_variables(self):
+        self.time = [0]
+        self.joint_variables = torch.zeros((int(self.max_episode_length),self.num_variable,self.num_joints)) # energy, joint torque, joint vel, joint accel, 
+        self.energy = None
+        self.joint_vel_sub = torch.zeros(self.num_joints).to(self.device)
+        self.way_point_idx = [0]
+        self.prev_time = 0
+        self.all_times = torch.zeros((self.terrain_goals.shape[2]))
+        self.plot_goal_reached = False
+        self.goal_idenfication = 0
+
     def _update_goals(self):
         next_flag = self.reach_goal_timer > self.cfg.env.reach_goal_delay / self.dt
         self.cur_goal_idx[next_flag] += 1
@@ -243,8 +275,21 @@ class LeggedRobot(BaseTask):
         next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
         self.abs_yaw =  self.compute_yaw(next_planner_goal, self.prev_planner_goal,mode=1)
         abs_delta_yaw = torch.abs(wrap_to_pi(self.abs_yaw - self.yaw))
+
         # self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), (abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol)) # for forcing heading!!!!!!!!!
         self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), torch.logical_or(abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol, self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx] == 0)) # for forcing heading!!!!!!!!!
+        
+        if self.reached_goal_ids[self.lookat_id] and self.cur_goal_idx[self.lookat_id] == self.goal_idenfication:
+            self.goal_idenfication+=1
+            # try:
+            self.all_times[self.way_point_idx[-1]]=self.current_time()-self.prev_time
+            self.way_point_idx.append(self.way_point_idx[-1]+1)
+            
+            self.prev_time = self.current_time()
+            # except:
+            #     import ipdb;ipdb.set_trace()
+    
+        # self.all_times
 
         # sampling plannergoals to have 0 vel
         # num1 = 0
@@ -286,7 +331,51 @@ class LeggedRobot(BaseTask):
         norm = torch.norm(self.next_target_pos_rel, dim=-1, keepdim=True)
         target_vec_norm = self.next_target_pos_rel / (norm + 1e-5)
         self.next_target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
+    
+    def current_time(self):
+        return self.episode_length_buf[self.lookat_id] * self.dt
+    
+    def plot_desired_variables(self):
+        torque = self.torques[self.lookat_id]
+        joint_vel = self.dof_vel[self.lookat_id]
+        # self.joint_vel_sub = torch.zeros_like(joint_vel)
+        joint_accel =  (joint_vel-self.joint_vel_sub)/self.dt
+        self.time.append(self.time[-1]+self.dt)
+        if self.energy == None:
+            self.energy = torque * torch.abs(joint_vel)
+            
+        else:
+            self.energy += torque * torch.abs(joint_vel)
+        self.joint_vel_sub = copy.copy(joint_vel).to(self.device)
 
+        self.joint_variables[len(self.time)-1, 0, :] = self.energy
+        self.joint_variables[len(self.time)-1, 1, :] = torque
+        self.joint_variables[len(self.time)-1, 2, :] = joint_vel
+        self.joint_variables[len(self.time)-1, 3, :] = joint_accel
+
+        # import ipdb; ipdb.set_trace()
+        joint_sum = torch.sum(self.joint_variables,dim=2)
+        self.ax1_plot[0].clear()
+        self.ax1_plot[1].clear()
+        self.ax1_plot[2].clear()
+
+
+        self.ax1_plot[0].plot(self.time, joint_sum[:len(self.time),0])
+        self.ax1_plot[0].legend(['energy'])
+
+        self.ax1_plot[1].plot(self.time, joint_sum[:len(self.time),1:])
+        self.ax1_plot[1].legend(['torque','joint_vel', 'joint_accel'])
+
+        # import ipdb; ipdb.set_trace()
+        self.ax1_plot[2].plot(self.way_point_idx[:len(self.way_point_idx)-1], self.all_times[:len(self.way_point_idx)-1])
+        self.ax1_plot[2].legend(['time taken from last waypoint'])
+
+        # joint_accel = joint_vel
+        # self.all_times
+        plt.pause(0.001)
+        plt.show(block=False)
+
+        return
     def post_physics_step(self):
         """ check terminations, compute observations and rewards
             calls self._post_physics_step_callback() for common computations 
@@ -314,6 +403,8 @@ class LeggedRobot(BaseTask):
         self.last_contacts = contact
         
         # self._update_jump_schedule()
+        self.plot_desired_variables()
+        # self.goal_idenfication = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)[self.lookat_id]
         self._update_goals()
         self._post_physics_step_callback()
 
@@ -391,6 +482,8 @@ class LeggedRobot(BaseTask):
         # reset robot states
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
+        if self.lookat_id in env_ids:
+            self.reset_plot_variables()
         self._resample_commands(env_ids)
         self.gym.simulate(self.sim)
         self.gym.fetch_results(self.sim, True)
