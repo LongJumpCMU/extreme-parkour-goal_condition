@@ -789,7 +789,8 @@ class Terrain:
                                    edge=False,
                                    mixed_distraction=True,
                                    mixed_obstacles=True,
-                                   distraction_clearance_range=[0.25,0.5]
+                                   distraction_clearance_range=[0.25,0.5],
+                                   normal_distraction = True,
                                    )
             self.add_roughness(terrain)
 
@@ -1454,7 +1455,8 @@ def parkour_hurdle_edge_curated_terrain(terrain,
                            distration_range = [0.2,0.7],
                            distration_width = [0.5,1.0],
                            edge = True,
-                           distraction_clearance_range = [0.7,0.8]
+                           distraction_clearance_range = [0.7,0.8],
+                           normal_distraction = False,
                            ):
     # goals = np.zeros(((num_stones+1)*2, 2))
     if not self_adjust:
@@ -1489,17 +1491,25 @@ def parkour_hurdle_edge_curated_terrain(terrain,
     # incline_height = round(incline_height / terrain.vertical_scale)
     # last_incline_height = round(last_incline_height / terrain.vertical_scale)
     if mixed_distraction or mixed_obstacles:
-        scenario_sides = 0
+        scenario_sides = 1
     else:
         scenario_sides = np.random.randint(0, 2)
 
     dis_x = platform_len
-    if mixed_distraction or mixed_obstacles:
+    randxy_defined = [[2.1, -0.3],[1.7, 0.2],[1.6, -0.1],[2.3, 0.0],[1.9, -0.4],[2.2, 0.23],[2.0, -0.15], [1.8, -0.1]]
+    #  x_range=[1.5, 2.4],
+    # y_range=[-0.4,0.4],
+    if mixed_distraction or mixed_obstacles and not normal_distraction:
         rand_x = (dis_x_min+dis_x_max)//2
         rand_y = (dis_y_min+dis_y_max)//2
-    else:
+    elif not normal_distraction:
         rand_x = np.random.randint(dis_x_min, dis_x_max)
         rand_y = np.random.randint(dis_y_min, dis_y_max)
+    if normal_distraction or mixed_distraction:
+        rand_x = round(randxy_defined[0][0] / terrain.horizontal_scale)
+        rand_y = round(randxy_defined[0][1] / terrain.horizontal_scale)
+
+
     goals[0] = [platform_len - 1, mid_y+rand_y]
     sides = [mid_y+rand_y-half_valid_width, mid_y+rand_y+half_valid_width]
     bound = sides[scenario_sides]
@@ -1518,7 +1528,8 @@ def parkour_hurdle_edge_curated_terrain(terrain,
     distraction_clearance = np.random.randint(round(distraction_clearance_range[0] / terrain.horizontal_scale), round(distraction_clearance_range[1] / terrain.horizontal_scale))
     prev_block_x = 0
     distraction_heights = [-1.0,0.4, 1.5] # gap, hurdle, wall
-    obs_heights = [-1.0, -0.4,0.25, 0.4, 1.0, 2.0] # gap, hurdle, wall
+    obs_heights = [-1.0, -0.4,0.25, 0.3, 1.0, 2.0] # gap, hurdle, wall
+    obs_heights_normal_obs = [-1.0, -0.4,0.25, 0.3, -0.5, 0.3] # gap, hurdle, wall
     obs_width = [0.4, 0.6, 0.3, 0.5, 0.3, 0.4]
 
     for i in range(num_stones+1):
@@ -1566,7 +1577,10 @@ def parkour_hurdle_edge_curated_terrain(terrain,
                 terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, mid_y+rand_y+half_valid_width:] = 0
             else:
                 width = round(obs_width[i] / terrain.horizontal_scale)
-                terrain.height_field_raw[dis_x-width//2:dis_x+width//2, ] = round(obs_heights[i] / terrain.vertical_scale)
+                if not normal_distraction:
+                    terrain.height_field_raw[dis_x-width//2:dis_x+width//2, ] = round(obs_heights[i] / terrain.vertical_scale)
+                else:
+                    terrain.height_field_raw[dis_x-width//2:dis_x+width//2, ] = round(obs_heights_normal_obs[i] / terrain.vertical_scale)
                 terrain.height_field_raw[dis_x-width//2:dis_x+width//2, :mid_y+rand_y-half_valid_width] = 0
                 terrain.height_field_raw[dis_x-width//2:dis_x+width//2, mid_y+rand_y+half_valid_width:] = 0
         x_lower_bound_y = bound + round(scenario_out_range[i%len(scenario_out_range)][0])*sign - sign*move_y_range//2
@@ -1576,12 +1590,15 @@ def parkour_hurdle_edge_curated_terrain(terrain,
         
         
 
-        if mixed_distraction or mixed_obstacles:
+        if mixed_distraction or mixed_obstacles and not normal_distraction:
             rand_x = (dis_x_min+dis_x_max)//2
             rand_y = (dis_y_min+dis_y_max)//2
-        else:
+        elif not normal_distraction:
             rand_x = np.random.randint(dis_x_min, dis_x_max)
             rand_y = np.random.randint(dis_y_min, dis_y_max)
+        if normal_distraction or mixed_distraction:
+            rand_x = round(randxy_defined[i+1][0] / terrain.horizontal_scale)
+            rand_y = round(randxy_defined[i+1][1] / terrain.horizontal_scale)
 
         
         x_upper_bound = block_x_range[0] - robot_len_half

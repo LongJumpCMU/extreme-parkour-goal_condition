@@ -244,7 +244,7 @@ class LeggedRobot(BaseTask):
         self.abs_yaw =  self.compute_yaw(next_planner_goal, self.prev_planner_goal,mode=1)
         abs_delta_yaw = torch.abs(wrap_to_pi(self.abs_yaw - self.yaw))
         # self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), (abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol)) # for forcing heading!!!!!!!!!
-        self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), torch.logical_or(abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol, self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx] == 0)) # for forcing heading!!!!!!!!!
+        # self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), torch.logical_or(abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol, self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx] == 0)) # for forcing heading!!!!!!!!!
 
         # sampling plannergoals to have 0 vel
         # num1 = 0
@@ -262,7 +262,7 @@ class LeggedRobot(BaseTask):
         # #     import ipdb;ipdb.set_trace()
         # # import ipdb;ipdb.set_trace()
 
-        # self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold
+        self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold
         # check if this is a planner goal, if it is then set it to smth else
         # import ipdb; ipdb.set_trace()
         
@@ -337,7 +337,7 @@ class LeggedRobot(BaseTask):
 
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
             self.gym.clear_lines(self.viewer)
-            self._draw_height_samples()
+            # self._draw_height_samples()
             self._draw_goals()
             self._draw_feet()
             if self.cfg.depth.use_camera:
@@ -485,6 +485,10 @@ class LeggedRobot(BaseTask):
             # target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
             return target_vec_norm
 
+    def yaw2vector(self, yaw):
+        vec = torch.stack([torch.cos(yaw), torch.sin(yaw)], dim=-1)
+        vec_norm = vec / (torch.norm(vec, dim=-1, keepdim=True) + 1e-5)
+        return vec_norm
 
 
             
@@ -1263,7 +1267,7 @@ class LeggedRobot(BaseTask):
         if not self.terrain.cfg.measure_heights:
             return
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 4, 4, None, color=(1, 1, 0))
+        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0, 0, 1))
         i = self.lookat_id
         base_pos = (self.root_states[i, :3]).cpu().numpy()
         heights = self.measured_heights[i].cpu().numpy()
@@ -1306,7 +1310,7 @@ class LeggedRobot(BaseTask):
             pose_robot = self.root_states[self.lookat_id, :3].cpu().numpy()
             for i in range(5):
                 norm = torch.norm(self.target_pos_rel, dim=-1, keepdim=True)
-                target_vec_norm = self.target_pos_rel / (norm + 1e-5)
+                target_vec_norm = self.yaw2vector(self.yaw)
                 pose_arrow = pose_robot[:2] + 0.1*(i+3) * target_vec_norm[self.lookat_id, :2].cpu().numpy()
 
                 # get abs heading

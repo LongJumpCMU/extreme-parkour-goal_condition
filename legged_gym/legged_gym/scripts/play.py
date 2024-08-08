@@ -104,7 +104,7 @@ def play(args):
 
                                     "gap_edge_distracted_gap": 0.0,
                                     "hurdle_edge_distracted_hurdle": 0.0,
-                                    "wall_edge_distracted_wall": 0.0,
+                                    "wall_edge_distracted_wall": 0.2,
                                     "hurdle_edge_distracted_gap": 0.0,
                                     "hurdle_edge_distracted_wall": 0.0,
                                     "gap_edge_distracted_wall": 0.0,
@@ -117,7 +117,7 @@ def play(args):
                                     "gap_distracted_wall": 0.0,
                                     # "gap_distracted_hurdle": 0.0,
 
-                                    "mixed_distraction": 0.2,
+                                    "mixed_distraction": 0.0,
                                     "mixed_distraction_edge": 0.0,
                                     "mixed_edge": 0.0,
                                     }
