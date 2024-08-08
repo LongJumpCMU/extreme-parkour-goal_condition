@@ -63,7 +63,7 @@ class TaskRegistry():
         env_cfg.seed = train_cfg.seed
         return env_cfg, train_cfg
     
-    def make_env(self, name, args=None, env_cfg=None) -> Tuple[VecEnv, LeggedRobotCfg]:
+    def make_env(self, name, args=None, env_cfg=None,init_reset_pos=[], init_start=None, init_target=None,init_heights=None) -> Tuple[VecEnv, LeggedRobotCfg]:
         """ Creates an environment either from a registered namme or from the provided config file.
 
         Args:
@@ -95,11 +95,22 @@ class TaskRegistry():
         # parse sim params (convert to dict first)
         sim_params = {"sim": class_to_dict(env_cfg.sim)}
         sim_params = parse_sim_params(args, sim_params)
-        env = task_class(   cfg=env_cfg,
-                            sim_params=sim_params,
-                            physics_engine=args.physics_engine,
-                            sim_device=args.sim_device,
-                            headless=args.headless)
+        if len(init_reset_pos) == 0:
+            env = task_class(   cfg=env_cfg,
+                                sim_params=sim_params,
+                                physics_engine=args.physics_engine,
+                                sim_device=args.sim_device,
+                                headless=args.headless)
+        else:
+            env = task_class(   cfg=env_cfg,
+                                sim_params=sim_params,
+                                physics_engine=args.physics_engine,
+                                sim_device=args.sim_device,
+                                headless=args.headless, 
+                                init_reset_pos=init_reset_pos,
+                                init_start=init_start,
+                                init_target=init_target,
+                                init_heights=init_heights)
         return env, env_cfg
 
     def make_alg_runner(self, env, name=None, args=None, train_cfg=None, init_wandb=True, log_root="default", **kwargs) -> Tuple[OnPolicyRunner, LeggedRobotCfgPPO]:

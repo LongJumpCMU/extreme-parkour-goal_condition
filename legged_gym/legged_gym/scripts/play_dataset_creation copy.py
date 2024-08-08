@@ -131,14 +131,14 @@ def play(args):
     if args.web:
         web_viewer.setup(env)
 
-    scandots_x,scandots_y,dataset_config, height_map = prepare_env(args.config_path)
+    scandots_x,scandots_y,dataset_config, height_map, patchx,patchy = prepare_env(args.config_path)
     env_cfg.terrain.img_path = dataset_config["img_path"]
     all_start = None
     all_target = None
-    SCANDOTS_RANGE = [[scandots_x[0], scandots_x[-1]], [scandots_y[0], scandots_y[-1]]]
+    SCANDOTS_RANGE = [[patchx[0], patchx[-1]], [patchy[0], patchy[-1]]]
     heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
     if not dataset_config["collect_with_planner"]:
-        all_valid_pairs = np.array(all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
+        all_valid_pairs = all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list)
     all_start = all_valid_pairs[:,0:3]
     all_target = all_valid_pairs[:,3:]
 
@@ -220,6 +220,7 @@ def play(args):
             if not dataset_config["collect_with_planner"]:
                 start_idx += 1
                 termination = start_idx >= len(all_start)
+                # the next start in all regions
                 if not termination:
                     next_start = all_start[start_idx]
                     next_target = np.array([all_target[start_idx].tolist()])

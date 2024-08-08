@@ -40,7 +40,9 @@ class LeggedRobotCfgDataset(BaseConfig):
         mask_priv_obs = False
     class env:
         num_envs = 6144
-
+        num_agents = 10
+        num_regions = num_envs//10
+        
         n_scan = 132
         n_priv = 3+3 +3
         n_priv_latent = 4 + 1 + 12 +12
@@ -204,7 +206,7 @@ class LeggedRobotCfgDataset(BaseConfig):
         slope_treshold = 1.5# slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals = 2
+        num_goals = 3
 
     class commands:
         curriculum = False

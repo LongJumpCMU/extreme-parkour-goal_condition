@@ -93,8 +93,6 @@ class LeggedRobot(BaseTask):
             headless (bool): Run without rendering if True
         """
         self.cfg = cfg
-        
-        
 
         self.sim_params = sim_params
         self.height_samples = None
@@ -338,7 +336,7 @@ class LeggedRobot(BaseTask):
     def plot_desired_variables(self):
         torque = self.torques[self.lookat_id]
         joint_vel = self.dof_vel[self.lookat_id]
-        # self.joint_vel_sub = torch.zeros_like(joint_vel)
+        # self.joint_vel_sub = torch.zeros_like(joint_vel)c
         joint_accel =  (joint_vel-self.joint_vel_sub)/self.dt
         self.time.append(self.time[-1]+self.dt)
         if self.energy == None:

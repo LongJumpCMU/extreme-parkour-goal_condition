@@ -88,7 +88,7 @@ def play(args):
     env_cfg.env.episode_length_s = 20
     env_cfg.commands.resampling_time = 20
     env_cfg.terrain.num_rows = 1
-    env_cfg.terrain.num_cols = 1
+    env_cfg.terrain.num_cols = args.num_regions
     env_cfg.terrain.height = [0.02, 0.02]
     env_cfg.terrain.terrain_dict = {"data_set": 0.2}
     
@@ -125,28 +125,36 @@ def play(args):
 
     # prepare environment
     env: LeggedRobot_Dataset
-    env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
-    obs = env.get_observations()
+
     # print("args.task is: ", args.task)
     if args.web:
         web_viewer.setup(env)
 
-    scandots_x,scandots_y,dataset_config, height_map = prepare_env(args.config_path)
+    scandots_x,scandots_y,dataset_config, height_map, patchx, patchy = prepare_env(args.config_path)
     env_cfg.terrain.img_path = dataset_config["img_path"]
     all_start = None
     all_target = None
-    SCANDOTS_RANGE = [[scandots_x[0], scandots_x[-1]], [scandots_y[0], scandots_y[-1]]]
+    SCANDOTS_RANGE = [[patchx[0], patchx[-1]], [patchy[0], patchy[-1]]]
     heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
     if not dataset_config["collect_with_planner"]:
-        all_valid_pairs = np.array(all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
-    all_start = all_valid_pairs[:,0:3]
-    all_target = all_valid_pairs[:,3:]
+        all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
+    # import ipdb; ipdb.set_trace()
+    all_true_start = all_valid_pairs[:,0, 0:2]
+    # all_start = all_valid_pairs[:,0, 3:5]
+    all_target = all_valid_pairs[:,0, 2:]
+
+    env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg, init_reset_pos=all_true_start, init_start=all_start, init_target=all_target, init_heights=height_map[pos2idx_array(all_true_start[:,0], dataset_config), pos2idx_array(all_true_start[:,1], dataset_config)])
+    # import ipdb; ipdb.set_trace()
+    obs = env.get_observations()
+
+
+    
 
     termination = False
     start_idx = 0
-    next_start = all_start[start_idx]
-    next_target = np.array([all_target[start_idx].tolist()])
-    env.set_run_conditions(next_start,next_target, dataset_config, height_map[pos2idx(next_start[0], dataset_config), pos2idx(next_start[1], dataset_config)])
+    next_start = all_valid_pairs[:,start_idx, 0:2]
+    # next_target = np.array([all_target[start_idx].tolist()])
+    env.set_run_conditions(next_start,all_target, dataset_config, height_map[pos2idx_array(all_true_start[:,0], dataset_config), pos2idx_array(all_true_start[:,1], dataset_config)])
 
     # load policy
     train_cfg.runner.resume = True
@@ -202,7 +210,11 @@ def play(args):
                 actions = policy(obs.detach(), hist_encoding=True, scandots_latent=depth_latent)
             
         obs, _, rews, dones, infos, resetcnt = env.step(actions.detach())
-        if resetcnt >= args.num_envs:
+        mask_reset_count = resetcnt >= args.num_agents
+        # will make it such that it waits for all env to finish before proceeding for now, will change later
+        
+        # if resetcnt >= args.num_envs:
+        if torch.all(mask_reset_count):
             perform_dict = env.get_perform_dict()
             print("perform_dict is: ", perform_dict, "resetcnt is: ", resetcnt, " terrain goal is: ", env.terrain_goals)
             # get patch into perform dict
@@ -218,13 +230,21 @@ def play(args):
             env.clear_perform_dict()
             env.reset_reset_cnt()
             if not dataset_config["collect_with_planner"]:
+                # change such that it terminates when all target points has been reached, while inputting all starting points as regions, also change termination conditions, also need add three point
+                #  also need to randomly sample points in patch
+                # change patch size
+                
                 start_idx += 1
                 termination = start_idx >= len(all_start)
                 if not termination:
-                    next_start = all_start[start_idx]
-                    next_target = np.array([all_target[start_idx].tolist()])
-                    env.set_run_conditions(next_start,next_target, dataset_config, height_map[pos2idx(next_start[0], dataset_config), pos2idx(next_start[1], dataset_config)])
-                    # import ipdb; ipdb.set_trace()
+                    # next_start = all_start[start_idx]
+                    next_start = all_valid_pairs[:,start_idx, 0:2]
+
+                    next_target = all_valid_pairs[:,start_idx, 2:]
+
+                    # start: reset position for all env based on circular rule
+                    # target: actual start position as well as desired final target for all envs
+                    env.set_run_conditions(next_start,next_target, dataset_config, height_map[pos2idx_array(next_start[:,0], dataset_config), pos2idx_array(next_start[:,1], dataset_config)])
 
             # if args.collect_with_planner:
             # run planner and get next point
