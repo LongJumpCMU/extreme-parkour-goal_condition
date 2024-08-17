@@ -251,7 +251,7 @@ def get_args():
         {"name": "--obstacle_block", "nargs": '+', "type": float, "default": [1.5,3,0.25], "help": "[l*w*h] of the block obstacle"},
         {"name": "--img_path", "type": str, "default": "../../../../planning-project/data/png_envs/maze.png", "help": "path of the png file we read"},
         {"name": "--config_path", "type": str, "default": "data_collection_configs/default_configs.json", "help": "the path for the config file"},
-        {"name": "--plot_mode", "type": int, "default": 0, "help": "obstacle number choice"},
+        {"name": "--plot_mode", "type": int, "default": 0, "help": "whether to plot or not"},
         {"name": "--policy_test", "action": "store_true", "default": False, "help": "save data for evaluation"},
         {"name": "--two_points", "action": "store_true", "default": False, "help": "save data for evaluation"},
         {"name": "--num_agents", "type": int, "default": 10, "help": "num of agents per region"},
