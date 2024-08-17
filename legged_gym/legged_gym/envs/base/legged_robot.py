@@ -100,6 +100,7 @@ class LeggedRobot(BaseTask):
         self.height_samples = None
         self.debug_viz = True
         self.init_done = False
+        self.plot_type = self.cfg.terrain.plot_test_type
         self._parse_cfg(self.cfg)
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
 
@@ -116,14 +117,14 @@ class LeggedRobot(BaseTask):
         self.init_done = True
         self.global_counter = 0
         self.total_env_steps_counter = 0
-
-        self.fig = plt.figure()
+        self.figs = []
+        self.figs.append(plt.figure())
         self.ax1_plot = []
-        self.ax1_plot.append(self.fig.add_subplot(2,1,1))
-        self.ax1_plot.append(self.fig.add_subplot(2,1,2))
-        self.fig2 = plt.figure()
+        self.ax1_plot.append(self.figs[0].add_subplot(2,1,1))
+        self.ax1_plot.append(self.figs[0].add_subplot(2,1,2))
+        self.figs.append(plt.figure())
         # self.ax1_plot2 = []
-        self.ax1_plot.append(self.fig2.add_subplot(1,1,1))
+        self.ax1_plot.append(self.figs[1].add_subplot(1,1,1))
         self.num_variable = 4
         self.num_joints = 12
         
@@ -261,9 +262,13 @@ class LeggedRobot(BaseTask):
         self.joint_vel_sub = torch.zeros(self.num_joints).to(self.device)
         self.way_point_idx = [0]
         self.prev_time = 0
-        self.all_times = torch.zeros((self.terrain_goals.shape[2]))
+        self.all_times = torch.zeros((self.terrain_goals.shape[2]+1))
         self.plot_goal_reached = False
         self.goal_idenfication = 0
+        # save the plots
+        filenames = ["energy_torque_vel_accel_"+self.plot_type+".png", "time-taken-from-last-waypoint_"+self.plot_type+".png"]
+        for i, fig in enumerate(self.figs):
+            fig.savefig(filenames[i])  # Save the figure
 
     def _update_goals(self):
         next_flag = self.reach_goal_timer > self.cfg.env.reach_goal_delay / self.dt

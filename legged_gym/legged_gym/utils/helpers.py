@@ -167,6 +167,9 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
         env_cfg.terrain.obs_num = args.num_obs
         env_cfg.terrain.config_path = args.config_path
         env_cfg.terrain.plot_goal_num = args.plot_mode
+        env_cfg.terrain.plot_test_type = args.plot_test_type
+
+        
 
     if cfg_train is not None:
         if args.seed is not None:
@@ -247,6 +250,8 @@ def get_args():
         {"name": "--img_path", "type": str, "default": "../../../../planning-project/data/png_envs/maze.png", "help": "path of the png file we read"},
         {"name": "--config_path", "type": str, "default": "data_collection_configs/default_configs.json", "help": "the path for the config file"},
         {"name": "--plot_mode", "type": int, "default": 0, "help": "obstacle number choice"},
+        {"name": "--plot_test_type", "type": str, "default": "block", "help": "obstacle number choice"},
+
 
 
 

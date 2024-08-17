@@ -774,15 +774,16 @@ class Terrain:
 
             idx = 42
             parkour_plot_terrain(terrain,
-                                   num_stones=1,
+                                   num_stones=self.num_goals-2,
                                    stone_len=0.1+0.3*difficulty,
                                    hurdle_height_range=[0.1+0.1*difficulty, 0.15+0.15*difficulty],
                                    pad_height=0,
                                 #    y_range=self.cfg.y_range,
                                    half_valid_width=[0.45, 1],
                                 #    flat=True,
-                                   obstacle_block=self.cfg.obstacle_block,
+                                   obstacle_block=self.cfg.obstacle,
                                    num_goals=self.num_goals,
+                                   plot_test_type=self.cfg.plot_test_type,
                                    )
             self.add_roughness(terrain)
         # elif choice < self.proportions[41]:
@@ -1261,9 +1262,11 @@ def parkour_plot_terrain(terrain,
                            pad_height=0.5,
                            flat=False,
                            obstacle_block=[0,0,0],
-                           num_goals=2):
+                           num_goals=2, 
+                           plot_test_type="block"):
     goals = np.zeros((num_goals, 2))
     # terrain.height_field_raw[:] = -200
+    # import ipdb;ipdb.set_trace()
     height_block = round(obstacle_block[2] / terrain.vertical_scale)
     obs_width_block = round(obstacle_block[1] / terrain.horizontal_scale)
     obs_length_block = round(obstacle_block[0] / terrain.horizontal_scale)
@@ -1295,11 +1298,11 @@ def parkour_plot_terrain(terrain,
         goals[0] = [platform_len - 1, mid_y]
     last_dis_x = dis_x
     for i in range(num_stones):
-        rand_x = np.random.randint(dis_x_min, dis_x_max)
-        rand_y = np.random.randint(dis_y_min, dis_y_max)
+        rand_x = (dis_x_min+dis_x_max)//2#np.random.randint(dis_x_min, dis_x_max)
+        rand_y = (dis_y_min+dis_y_max)//2#np.random.randint(dis_y_min, dis_y_max)
         dis_x += rand_x
         if not flat:
-            terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, ] = height_block
+            terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, ] = height_block + round(i*0.1 / terrain.vertical_scale)
             terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, :mid_y+rand_y-half_valid_width] = 0
             terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, mid_y+rand_y+half_valid_width:] = 0
         last_dis_x = dis_x
