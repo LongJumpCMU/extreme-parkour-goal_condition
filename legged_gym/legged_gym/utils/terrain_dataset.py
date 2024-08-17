@@ -68,6 +68,8 @@ class TerrainDataset:
         self.proportions = [np.sum(cfg.terrain_proportions[:i+1]) for i in range(len(cfg.terrain_proportions))]
         self.cfg.num_sub_terrains = cfg.num_rows * cfg.num_cols
         self.env_origins = np.zeros((cfg.num_rows, cfg.num_cols, 3))
+        self.env_offset = np.zeros((cfg.num_rows, cfg.num_cols, 3))
+
         self.terrain_type = np.zeros((cfg.num_rows, cfg.num_cols))
         self.starting_goal = np.zeros((1,2))
         self.target = cfg.target
@@ -195,11 +197,12 @@ class TerrainDataset:
                                 x_range=[0.8, 1.5],
                                 y_range=self.cfg.y_range,
                                 half_valid_width=[0.6, 1.2],
-                                ending_offset=self.target, 
+                                # ending_offset=self.target, 
                             ) 
             # import ipdb; ipdb.set_trace()
             if self.roughness_enable:
                 self.add_roughness(terrain)
+        
         terrain.idx = idx
         return terrain
 
@@ -215,7 +218,7 @@ class TerrainDataset:
         self.common_env = terrain.height_field_raw
 
         # env_origin_x = (i + 0.5) * self.env_length
-        env_origin_x = i * self.env_length + 1.0
+        env_origin_x =  i * self.env_length + 1.0
         env_origin_y = (j + 0.5) * self.env_width
         x1 = int((self.env_length/2. - 0.5) / terrain.horizontal_scale) # within 1 meter square range
         x2 = int((self.env_length/2. + 0.5) / terrain.horizontal_scale)
@@ -227,12 +230,20 @@ class TerrainDataset:
             env_origin_z = np.max(terrain.height_field_raw[x1:x2, y1:y2])*terrain.vertical_scale
         self.env_origins[i, j] = [env_origin_x, env_origin_y, env_origin_z]
         self.terrain_type[i, j] = terrain.idx
+
+        env_offset_x = i * self.env_length #original: i * self.env_length + 1.0
+        env_offset_y = j * self.env_width#(j + 0.5) * self.env_width
+        self.env_offset[i, j] = [env_offset_x, env_offset_y, env_origin_z]
+
+        
         ######################### FOR WAYPOINT TRACKING ##########################################
         
         assert i==0, "Row should be 1" 
         self.goals.resize((self.cfg.num_rows,self.cfg.num_cols,terrain.goals.shape[0],3))
-        self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width]
         # import ipdb; ipdb.set_trace()
+
+        self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width]
+        # self.planner_goals[i, j, :] = terrain.planner_goals
 
         ##########################################################################################
 

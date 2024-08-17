@@ -170,6 +170,8 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
         env_cfg.terrain.obs_num = args.num_obs
         env_cfg.terrain.config_path = args.config_path
         env_cfg.terrain.plot_goal_num = args.plot_mode
+        env_cfg.terrain.policy_test = args.policy_test
+        env_cfg.terrain.two_points = args.two_points
 
     if cfg_train is not None:
         if args.seed is not None:
@@ -242,7 +244,7 @@ def get_args():
         # {"name": "--obs_height", "type": float, "default": 2.0, "help": "height of the obstacle"}
 
         {"name": "--start", "nargs": '+', "type": float, "default": [-1.2,0,0], "help": "the starting position of the robot"},
-        {"name": "--target", "nargs": '+', "type": float, "default": [0,0], "help": "the ending position of the robot"},
+        {"name": "--target", "nargs": '+', "type": float, "default": [0,0,0,0], "help": "the ending position of the robot"},
         {"name": "--obstacle", "nargs": '+', "type": float, "default": [0,0,0], "help": "[l*w*h] of the obstacle"},
         {"name": "--obs_choice", "type": int, "default": 0, "help": "obstacle choice"},
         {"name": "--num_obs", "type": int, "default": 10, "help": "obstacle number choice"},
@@ -250,6 +252,8 @@ def get_args():
         {"name": "--img_path", "type": str, "default": "../../../../planning-project/data/png_envs/maze.png", "help": "path of the png file we read"},
         {"name": "--config_path", "type": str, "default": "data_collection_configs/default_configs.json", "help": "the path for the config file"},
         {"name": "--plot_mode", "type": int, "default": 0, "help": "obstacle number choice"},
+        {"name": "--policy_test", "action": "store_true", "default": False, "help": "save data for evaluation"},
+        {"name": "--two_points", "action": "store_true", "default": False, "help": "save data for evaluation"},
         {"name": "--num_agents", "type": int, "default": 10, "help": "num of agents per region"},
         {"name": "--num_regions", "type": int, "default": 10, "help": "num of regions to collect data"},
 

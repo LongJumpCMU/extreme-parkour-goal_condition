@@ -10,18 +10,20 @@
     "vertical_scale": 0.005,
     "max_height": 4,
     "min_height": -4,
-    "img_path": "../../../../planning-project/data/png_envs/maze.png",
+    "img_path": "../../../maze.png",
     "saved_data_dir": "dataset",
     "min_target_dis": 0.3, 
     "min_ditch_spawn": -0.5,
-    "robot_clearance": 0.3,
+    "robot_clearance": 0.4,
     "sample_clearance": 0.4,
-    "heading_divide": 8,
+    "heading_divide": 100,
     "max_wall_height": 1,
     "min_wall_height": -10,
     "collect_with_planner": false,
     "data_file": "dataset.csv",
     "add_roughness": false,
-    "sample_per_region": 100
+    "sample_per_region": 3000,
+    "policy_test": true,
+    "start_distance": 0.5
     
 }

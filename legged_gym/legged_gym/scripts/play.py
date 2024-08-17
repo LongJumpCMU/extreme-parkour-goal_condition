@@ -46,6 +46,8 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 from time import time, sleep
 from legged_gym.utils import webviewer
+from collect_data_set_env import prepare_env, all_valid_pnts, check_directory, valid_waypoint, bounds_valid, on_close_wall_valid, is_wall_between_points, is_distance_safe, is_within_height_limit, read_config, scale_env, pos2idx,pos2idx_array, idx2pos, rotate_point, divide_heading
+
 
 def get_load_path(root, load_run=-1, checkpoint=-1, model_name_include="model"):
     if checkpoint==-1:
@@ -63,14 +65,17 @@ def play(args):
     log_pth = "../../logs/{}/".format(args.proj_name) + args.exptid
 
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
+    
+    scandots_x,scandots_y,dataset_config, height_map, patchx, patchy = prepare_env(args.config_path)
+
     # override some parameters for testing
     if args.nodelay:
         env_cfg.domain_rand.action_delay_view = 0
     env_cfg.env.num_envs = 16 if not args.save else 64
     env_cfg.env.episode_length_s = 60
     env_cfg.commands.resampling_time = 60
-    env_cfg.terrain.num_rows = 5
-    env_cfg.terrain.num_cols = 5
+    env_cfg.terrain.num_rows = 1
+    env_cfg.terrain.num_cols = 1
     env_cfg.terrain.height = [0.02, 0.02]
     env_cfg.terrain.terrain_dict = {"smooth slope": 0., 
                                     "rough slope up": 0.0,
@@ -116,7 +121,8 @@ def play(args):
                                     "hurdle_distracted_wall": 0.0,
                                     "gap_distracted_wall": 0.0,
                                     
-                                    "plot_terrain": 0.2,
+                                    "plot_terrain": 0.0,
+                                    "policy_test": 0.2
                                     }
                                     
 
@@ -127,7 +133,7 @@ def play(args):
     env_cfg.terrain.max_difficulty = True
     
     env_cfg.depth.angle = [0, 1]
-    env_cfg.noise.add_noise = True
+    env_cfg.noise.add_noise = False
     env_cfg.domain_rand.randomize_friction = True
     env_cfg.domain_rand.push_robots = False
     env_cfg.domain_rand.push_interval_s = 6
@@ -139,7 +145,7 @@ def play(args):
     env: LeggedRobot
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
     obs = env.get_observations()
-
+    env.policy_test = dataset_config["policy_test"]
     if args.web:
         web_viewer.setup(env)
 
@@ -194,6 +200,7 @@ def play(args):
                 actions = policy(obs.detach(), hist_encoding=True, scandots_latent=depth_latent)
             
         obs, _, rews, dones, infos = env.step(actions.detach())
+        # import ipdb; ipdb.set_trace()
         if args.web:
             web_viewer.render(fetch_results=True,
                         step_graphics=True,

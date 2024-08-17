@@ -49,6 +49,10 @@ class Terrain:
             return
         self.env_length = cfg.terrain_length
         self.env_width = cfg.terrain_width
+        self.starting_goal = np.zeros((1,2))
+        self.target = cfg.target
+        self.start=cfg.start
+        self.two_points=cfg.two_points
 
         cfg.terrain_proportions = np.array(cfg.terrain_proportions) / np.sum(cfg.terrain_proportions)
         self.proportions = [np.sum(cfg.terrain_proportions[:i+1]) for i in range(len(cfg.terrain_proportions))]
@@ -118,7 +122,7 @@ class Terrain:
     def curiculum(self, random=False, max_difficulty=False):
         for j in range(self.cfg.num_cols):
             for i in range(self.cfg.num_rows):
-                difficulty = i / (self.cfg.num_rows-1)
+                # difficulty = i / (self.cfg.num_rows-1)
                 choice = j / self.cfg.num_cols + 0.001
                 if random:
                     # import ipdb; ipdb.set_trace()
@@ -128,7 +132,7 @@ class Terrain:
                         terrain = self.make_terrain(choice, np.random.uniform(0, 1))
                 else:
                     # import ipdb; ipdb.set_trace()
-                    terrain = self.make_terrain(choice, difficulty)
+                    terrain = self.make_terrain(choice, 1)
 
                 self.add_terrain_to_map(terrain, i, j)
 
@@ -785,6 +789,21 @@ class Terrain:
                                    num_goals=self.num_goals,
                                    )
             self.add_roughness(terrain)
+        
+        elif choice < self.proportions[42]:
+            # import ipdb; ipdb.set_trace()
+
+            idx = 43
+            self.starting_goal = parkour_policy_test_terrain(terrain,
+                                obstacle=self.cfg.obstacle,
+                                pad_height=0,
+                                x_range=[0.4, 1.5],
+                                y_range=self.cfg.y_range,
+                                half_valid_width=[0.6, 1.2],
+                                ending_offset=self.target,
+                                start_offset=self.start,
+                                two_points=self.two_points) 
+            self.add_roughness(terrain)
         # elif choice < self.proportions[41]:
         #     # gap_distracted_hurdle
         #     idx = 42
@@ -1246,6 +1265,93 @@ def parkour_hurdle_terrain(terrain,
     terrain.height_field_raw[:, -pad_width:] = pad_height
     terrain.height_field_raw[:pad_width, :] = pad_height
     terrain.height_field_raw[-pad_width:, :] = pad_height
+
+
+
+def parkour_policy_test_terrain(terrain,
+                           platform_len=2.5, 
+                           platform_height=0.,
+                           obstacle=[0.3,0.3,-200],
+                           x_range=[1.6, 2.4],
+                           y_range=[-1.2, 1.2],
+                           half_valid_width=[0.6, 1.2],
+                           pad_width=0.1,
+                           pad_height=0.5,
+                           ending_offset=[0,0,0,0],# first is first x point, second is first y point, third is distance, last is angle
+                           start_offset=[0,0],
+                           two_points=False):
+    height = round(obstacle[2] / terrain.vertical_scale)
+    if height == 0:
+        obs_width = 0
+    else:
+        obs_width = round(obstacle[1] / terrain.horizontal_scale)
+    
+    
+    mid_y = terrain.length // 2  # length is actually y width
+    dis_y_min = round(y_range[0] / terrain.horizontal_scale)
+    dis_y_max = round(y_range[1] / terrain.horizontal_scale)
+
+    platform_len = round(platform_len / terrain.horizontal_scale)
+    platform_height = round(platform_height / terrain.vertical_scale)
+    
+    half_valid_width = round(np.random.uniform(half_valid_width[0], half_valid_width[1]) / terrain.horizontal_scale)*3
+
+    
+    if height != 0:
+        dis_x_min = round(x_range[0] / terrain.horizontal_scale) + obs_width
+        dis_x_max = round(x_range[1] / terrain.horizontal_scale) + obs_width
+    else:
+        print("!!!!!!!!!!!!!!!!!!obs width is: ", obs_width, "height is: ", height)
+        dis_x_min = 0
+        dis_x_max = 0
+
+    dis_x = platform_len
+    temp_goal = [platform_len - 1, mid_y]
+
+    rand_x = dis_x_min#np.random.randint(dis_x_min, dis_x_max)
+    dis_x += rand_x 
+    rand_y = (dis_y_min + dis_y_max)//2
+    terrain.height_field_raw[dis_x-obs_width//2 : dis_x+obs_width//2, :] = height
+
+    temp_goal = [terrain.horizontal_scale*(dis_x-rand_x//2), terrain.horizontal_scale*(mid_y + rand_y)]
+    final_dis_x = dis_x + obs_width//2
+
+    if final_dis_x > terrain.width:
+        final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
+    
+    if not two_points:
+        goal_list = [[temp_goal[0]/terrain.horizontal_scale+ending_offset[0]/terrain.horizontal_scale, 
+                      temp_goal[1]/terrain.horizontal_scale+ending_offset[1]/terrain.horizontal_scale]]
+    else:
+        goal_list = [[temp_goal[0]/terrain.horizontal_scale+ending_offset[0]/terrain.horizontal_scale, 
+                      temp_goal[1]/terrain.horizontal_scale+ending_offset[1]/terrain.horizontal_scale]]
+        secondpoint = [0,0]
+
+        target_pos_rel = np.array([ending_offset[0]-start_offset[0],ending_offset[1]-start_offset[1]])
+        norm = np.linalg.norm(target_pos_rel)
+        target_vec_norm = target_pos_rel / (norm + 1e-5)
+        target_yaw = np.arctan2(target_vec_norm[1], target_vec_norm[0])
+        
+        secondpoint[0] = temp_goal[0]+ending_offset[0] + ending_offset[2]*np.cos(target_yaw+ending_offset[3])
+        secondpoint[1] = temp_goal[1]+ending_offset[1] + ending_offset[2]*np.sin(target_yaw+ending_offset[3])
+        goal_list.append([secondpoint[0]/terrain.horizontal_scale, secondpoint[1]/terrain.horizontal_scale])
+
+    goals = np.array(goal_list)
+    
+    terrain.goals = goals * terrain.horizontal_scale
+    terrain.planner_goals = np.ones(terrain.goals.shape[0])
+    
+    goals_original = np.array([[final_dis_x*terrain.horizontal_scale, mid_y*terrain.horizontal_scale]])
+    print("goal is: ", goals_original), print("temp goal is: ", temp_goal)
+    # terrain.height_field_raw[:, :] = 0
+    # pad edges
+    pad_width = int(pad_width // terrain.horizontal_scale)
+    pad_height = int(pad_height // terrain.vertical_scale)
+    # terrain.height_field_raw[:, :pad_width] = pad_height
+    # terrain.height_field_raw[:, -pad_width:] = pad_height
+    # terrain.height_field_raw[:pad_width, :] = pad_height
+    # terrain.height_field_raw[-pad_width:, :] = pad_height
+    return temp_goal
 
 
 def parkour_plot_terrain(terrain,

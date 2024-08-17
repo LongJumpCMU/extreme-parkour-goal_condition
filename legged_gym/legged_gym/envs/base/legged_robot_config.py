@@ -90,8 +90,8 @@ class LeggedRobotCfg(BaseConfig):
     class depth:
         use_camera = False
         camera_num_envs = 192
-        camera_terrain_num_rows = 10
-        camera_terrain_num_cols = 20
+        camera_terrain_num_rows = 1
+        camera_terrain_num_cols = 1
 
         # position = [0.27, 0, 0.03]  # front camera
         position = [0.245+0.027, 0.0075, 0.072+0.02]
@@ -225,7 +225,7 @@ class LeggedRobotCfg(BaseConfig):
         slope_treshold = 1.5# slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals = 8
+        num_goals = 2
 
     class commands:
         curriculum = False
@@ -245,7 +245,10 @@ class LeggedRobotCfg(BaseConfig):
 
         # Easy ranges
         class max_ranges:
-            lin_vel_x = [0.3, 0.8] # min max [m/s]
+            # ?stanford:running 0.8, climbing 1.2, leaping 1.5, crawling 0.8, tilting 0.5
+            # lin_vel_x = [0.3, 0.8] # min max [m/s]
+            lin_vel_x = [0.8, 0.8] # min max [m/s]
+
             lin_vel_y = [-0.3, 0.3]#[0.15, 0.6]   # min max [m/s]
             ang_vel_yaw = [-0, 0]    # min max [rad/s]
             heading = [-1.6, 1.6]
@@ -299,18 +302,18 @@ class LeggedRobotCfg(BaseConfig):
         thickness = 0.01
 
     class domain_rand:
-        randomize_friction = True
+        randomize_friction = False
         standstill_rand = 0.3 #0.1
         friction_range = [0.6, 2.]
-        randomize_base_mass = True
+        randomize_base_mass = False
         added_mass_range = [0., 3.]
-        randomize_base_com = True
+        randomize_base_com = False
         added_com_range = [-0.2, 0.2]
-        push_robots = True
+        push_robots = False
         push_interval_s = 8
         max_push_vel_xy = 0.5
 
-        randomize_motor = True
+        randomize_motor = False
         motor_strength_range = [0.8, 1.2]
 
         delay_update_global_steps = 24 * 8000

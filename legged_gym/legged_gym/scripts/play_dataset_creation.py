@@ -34,6 +34,7 @@ import code
 
 import isaacgym
 from legged_gym.envs import *
+from legged_gym.utils.math import *
 from legged_gym.utils import  get_args, export_policy_as_jit, task_registry, Logger
 from isaacgym import gymtorch, gymapi, gymutil
 import numpy as np
@@ -58,20 +59,22 @@ def get_load_path(root, load_run=-1, checkpoint=-1, model_name_include="model"):
         checkpoint = model.split("_")[-1].split(".")[0]
     return model, checkpoint
 
-def log_data(data, start, end, heading, data_file_name):
-    if os.path.isfile(data_file_name):
-        with open(data_file_name, "a", newline='') as f:
-            writer = csv.writer(f)
-            data_row = [start, end, heading, data['success'], data['energy_cost'], data['time_cost'], data['local_patch']]
-            writer.writerow(data_row)
-            # f.write(data)
-    else:
-        with open(data_file_name, "w", newline='') as f:
-            writer = csv.writer(f)
-            header = ['starting pos',  'ending pos', 'heading', 'success', 'energy_cost', 'time_cost', 'local_patch']
-            writer.writerow(header)
-            data_row = [start, end, heading,data['success'], data['energy_cost'], data['time_cost'], data['local_patch']]
-            writer.writerow(data_row)
+def log_data(data, reset_pos, start, end, heading, heading_2, data_file_name):
+    # import ipdb; ipdb.set_trace()
+    for i in range(len(reset_pos)):
+        if os.path.isfile(data_file_name):
+            with open(data_file_name, "a", newline='') as f:
+                writer = csv.writer(f)
+                data_row = [reset_pos[i], start[i], end[i], heading[i].item(), heading_2[i].item(), data['success'][i], data['energy_cost'][i], data['time_cost'][i], data['local_patch'][i]]
+                writer.writerow(data_row)
+                # f.write(data)
+        else:
+            with open(data_file_name, "w", newline='') as f:
+                writer = csv.writer(f)
+                header = ['reset_pos','starting pos',  'ending pos', 'heading', 'delta_heading', 'success', 'energy_cost', 'time_cost', 'local_patch']
+                writer.writerow(header)
+                data_row = [reset_pos[i], start[i], end[i], heading[i].item(), heading_2[i].item(),data['success'][i], data['energy_cost'][i], data['time_cost'][i], data['local_patch'][i]]
+                writer.writerow(data_row)
 
 def play(args):
     if args.web:
@@ -94,10 +97,10 @@ def play(args):
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = False
-    env_cfg.terrain.max_difficulty = True
+    env_cfg.terrain.max_difficulty = False
     
     env_cfg.depth.angle = [0, 1]
-    env_cfg.noise.add_noise = True
+    env_cfg.noise.add_noise = False
     env_cfg.domain_rand.randomize_friction = True
     env_cfg.domain_rand.push_robots = False
     env_cfg.domain_rand.push_interval_s = 6
@@ -137,14 +140,13 @@ def play(args):
     SCANDOTS_RANGE = [[patchx[0], patchx[-1]], [patchy[0], patchy[-1]]]
     heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
     if not dataset_config["collect_with_planner"]:
-        all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
+        all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list, verbose=True))
     # import ipdb; ipdb.set_trace()
     all_true_start = all_valid_pairs[:,0, 0:2]
     # all_start = all_valid_pairs[:,0, 3:5]
     all_target = all_valid_pairs[:,0, 2:]
 
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg, init_reset_pos=all_true_start, init_start=all_start, init_target=all_target, init_heights=height_map[pos2idx_array(all_true_start[:,0], dataset_config), pos2idx_array(all_true_start[:,1], dataset_config)])
-    # import ipdb; ipdb.set_trace()
     obs = env.get_observations()
 
 
@@ -154,7 +156,10 @@ def play(args):
     start_idx = 0
     next_start = all_valid_pairs[:,start_idx, 0:2]
     # next_target = np.array([all_target[start_idx].tolist()])
-    env.set_run_conditions(next_start,all_target, dataset_config, height_map[pos2idx_array(all_true_start[:,0], dataset_config), pos2idx_array(all_true_start[:,1], dataset_config)])
+    next_target = all_valid_pairs[:,start_idx, 2:]
+    env.set_run_conditions(next_start,next_target, dataset_config, height_map[pos2idx_array(all_true_start[:,0], dataset_config), pos2idx_array(all_true_start[:,1], dataset_config)])
+    env.set_patch(patchx=patchx, patchy=patchy)
+    # import ipdb; ipdb.set_trace()
 
     # load policy
     train_cfg.runner.resume = True
@@ -218,15 +223,22 @@ def play(args):
             perform_dict = env.get_perform_dict()
             print("perform_dict is: ", perform_dict, "resetcnt is: ", resetcnt, " terrain goal is: ", env.terrain_goals)
             # get patch into perform dict
-            local_patch = env._get_patch_dataset(next_start[0:2], next_start[2])
+            # import ipdb; ipdb.set_trace()
+            abs_yaw =  env.compute_yaw(torch.from_numpy(next_target[:,0:2]), torch.from_numpy(next_start))
+            abs_yaw_2 =  env.compute_yaw(torch.from_numpy(next_target[:,2:4]), torch.from_numpy(next_target[:,0:2]))
+
+            # .repeat_interleave(args.num_agents, dim=0)
+            np.set_printoptions(threshold=np.inf)
+            local_patch = env._get_patch_dataset(next_target[:,0:2], abs_yaw)
             # import ipdb; ipdb.set_trace()
             # need to make an arg to get the name of the csv file
             # see if the csv file exists, if not create a new one, otherwise append to it
             # need to write the bash script to repeatedly run this script with different case
-            perform_dict["local_patch"] = (local_patch.cpu()).numpy()[0]
+            perform_dict["local_patch"] = (local_patch.cpu()).numpy()
+            # import ipdb; ipdb.set_trace()
             data_file_name = args.data_file
-            
-            log_data(perform_dict,next_start[0:2].tolist(), next_target[0].tolist(), next_start[2], dataset_config["data_file"])
+            # import ipdb; ipdb.set_trace()
+            log_data(perform_dict,next_start.tolist(), next_target[:,0:2].tolist(), next_target[:,2:4].tolist(), wrap_to_pi(abs_yaw), wrap_to_pi(abs_yaw_2-abs_yaw),dataset_config["data_file"])
             env.clear_perform_dict()
             env.reset_reset_cnt()
             if not dataset_config["collect_with_planner"]:
@@ -235,7 +247,8 @@ def play(args):
                 # change patch size
                 
                 start_idx += 1
-                termination = start_idx >= len(all_start)
+                # import ipdb; ipdb.set_trace()
+                termination = start_idx >= all_valid_pairs.shape[1]
                 if not termination:
                     # next_start = all_start[start_idx]
                     next_start = all_valid_pairs[:,start_idx, 0:2]

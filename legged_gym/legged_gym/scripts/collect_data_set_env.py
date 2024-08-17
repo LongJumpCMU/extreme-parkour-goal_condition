@@ -11,8 +11,13 @@ import matplotlib.image as mpimg
 import data_set
 import itertools
 import random
+import time
+
+
 
 NUM_REGIONS = 0
+
+
 
 def get_coverage(robot_pos_x, robot_pos_y):
     max_valid_coverage = 1.42
@@ -166,9 +171,16 @@ def divide_heading(num_heading, mode = 'ALL'):
     if mode == 'FRONT':
         heading = np.linspace(-np.pi/2, np.pi/2, num=num_heading-1)
     else:
-        heading = np.linspace(-np.pi, np.pi, num=num_heading-1)
+        heading = np.linspace(np.pi/3, 2*(np.pi+np.pi/3), num=num_heading-1)
     
     return heading
+
+def random_angle(start_angle, end_angle):
+    return random.uniform(start_angle, end_angle)
+
+def generate_heading_list_random(heading_list):
+    random_array = np.random.rand(len(heading_list))
+    return np.array(heading_list)+random_array
 
 def valid_waypoint(
     robot_pos_x,
@@ -297,7 +309,7 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
     
     starting_listx = idx2pos(np.array(starting_listx),dataset_config)
     starting_listy = idx2pos(np.array(starting_listy),dataset_config)
-    heading_list = heading
+    heading_list = generate_heading_list_random(heading)
     start_idx = get_resume_idx(dataset_config)
     NUM_REGIONS = len(starting_listx)
     
@@ -308,7 +320,7 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
     resume_itr = 1
     str_granularity = f"granularity:{granularity}"
     LAST_COMPLETED_ITR = itr
-    circular_distance = 1
+    circular_distance = dataset_config["start_distance"]
 
 
     # Obstacle height [0, 0.7]/depth [-0.1, -0.4]
@@ -339,43 +351,6 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
                 
             while count_valid_targets < dataset_config["sample_per_region"] and num_valid_resets != 0:
                 for reset_pnt in reset_pnts:
-                    
-                # for target_x_granularity in scandots_x:
-                    
-                #     # Waypoint y [-1, 1]
-                #     target = [0,0]
-                #     for target_y_granularity in scandots_y:
-                        # target[1] = target_y_granularity + starting_y_granularity
-
-                    
-                        # # import ipdb; ipdb.set_trace()
-                        # start = [starting_x_granularity,starting_y_granularity]
-                        # all_start.append(start)
-                        # #######################################
-                        # target[0] = target_x_granularity + starting_x_granularity
-                        # # rotate the target
-                        # transformed_target_pos = rotate_point(target, start[0:2], 0.0)
-                        # # import ipdb; ipdb.set_trace()
-                        
-
-                        # print("valid point!!!!!!!!!!!!!!!!")
-                        # all_targets.append(transformed_target_pos)
-                        
-                        # reset_pos = circular_start(circular_distance, start, heading_granularity)
-                        
-                        # if not valid_waypoint(
-                        #     reset_pos[0],
-                        #     reset_pos[1],
-                        #     starting_x_granularity,
-                        #     starting_y_granularity,
-                        #     SCANDOTS_RANGE,
-                        #     dataset_config,
-                        #     height_map
-                        # ):
-                        #     print("not valid")
-                            
-                        #     continue
-
                         transformed_target_pos = np.zeros(2)
                         transformed_target_pos[0] = random.uniform(starting_x_granularity - abs(scandots_x[-1] - scandots_x[0])/2, starting_x_granularity + abs(scandots_x[-1] - scandots_x[0])/2)
                         transformed_target_pos[1] = random.uniform(starting_y_granularity - abs(scandots_y[-1] - scandots_y[0])/2, starting_y_granularity + abs(scandots_y[-1] - scandots_y[0])/2)
@@ -485,7 +460,7 @@ def main(args):
     ##################################################################
     heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
     if not dataset_config["collect_with_planner"]:
-        all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list, verbose=True))
+        all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
     # import ipdb;ipdb.set_trace()
     num_regions = all_valid_pairs.shape[0]
     total_envs = num_regions*num_agents
@@ -503,6 +478,7 @@ def main(args):
     # import ipdb;ipdb.set_trace()
 
 
+
     if args.run_type == 'unittest_validity':
         all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list, verbose=True)
     elif args.run_type == 'patch_data_collection':
@@ -513,7 +489,7 @@ def main(args):
                                 "--exptid",
                                 # "000-16-go1_p_40_d_1_official_torque_run2_backup",
                                 # "Mar-17-go1_A1limits_last_checkpoint",
-                                "003-82",
+                                "000-82",
                                 "--task",
                                 "dataset_go1",
                                 "--num_itr",
@@ -533,7 +509,7 @@ def main(args):
                                 "--num_agents",
                                 str(num_agents),
                                 
-                                # "--headless",
+                                "--headless",
                             ]
                         )
         process.wait()
@@ -546,4 +522,9 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
+    start = time.time()
+
     main(args)
+
+    end = time.time()
+    print("total time elapsed for data collection is: ", end - start)

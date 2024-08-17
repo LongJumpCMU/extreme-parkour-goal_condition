@@ -206,7 +206,7 @@ class LeggedRobotCfgDataset(BaseConfig):
         slope_treshold = 1.5# slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals = 3
+        num_goals = 2
 
     class commands:
         curriculum = False
@@ -226,7 +226,7 @@ class LeggedRobotCfgDataset(BaseConfig):
 
         # Easy ranges
         class max_ranges:
-            lin_vel_x = [0.3, 0.8] # min max [m/s]
+            lin_vel_x = [0.5, 0.5] # min max [m/s]
             lin_vel_y = [-0.3, 0.3]#[0.15, 0.6]   # min max [m/s]
             ang_vel_yaw = [-0, 0]    # min max [rad/s]
             heading = [-1.6, 1.6]
@@ -280,20 +280,22 @@ class LeggedRobotCfgDataset(BaseConfig):
         thickness = 0.01
 
     class domain_rand:
-        randomize_friction = True
-        friction_range = [0.6, 2.]
+        randomize_friction = False
+        friction_range = [1.0, 1.0]
         motor_offset_range = [-0.05, 0.05] # added from walk these ways
-        randomize_base_mass = True
+        randomize_base_mass = False
         added_mass_range = [0., 3.]
-        randomize_base_com = True
+        randomize_base_com = False
         added_com_range = [-0.2, 0.2]
-        push_robots = True
+        push_robots = False
         push_interval_s = 8
         rand_interval_s = 10
         max_push_vel_xy = 0.5
 
-        randomize_motor = True
-        motor_strength_range = [0.8, 1.2]
+        randomize_motor = False
+        # motor_strength_range = [0.8, 1.2] # original
+        motor_strength_range = [1.2, 1.2]
+
 
         delay_update_global_steps = 24 * 8000
         action_delay = False

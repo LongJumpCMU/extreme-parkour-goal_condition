@@ -93,7 +93,8 @@ class LeggedRobot(BaseTask):
             headless (bool): Run without rendering if True
         """
         self.cfg = cfg
-
+        self.start = cfg.terrain.start
+        # self.policy_test = False
         self.sim_params = sim_params
         self.height_samples = None
         self.debug_viz = True
@@ -139,7 +140,6 @@ class LeggedRobot(BaseTask):
         # num2 = 1
         # shape = (self.num_envs, 1)
         # self.command_rand = self.weighted_random_choice(num1, num2, shape).to("cuda:0")
-
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.planner_goal_reached = torch.zeros(self.num_envs)
         self.post_physics_step()
@@ -274,8 +274,11 @@ class LeggedRobot(BaseTask):
         self.abs_yaw =  self.compute_yaw(next_planner_goal, self.prev_planner_goal,mode=1)
         abs_delta_yaw = torch.abs(wrap_to_pi(self.abs_yaw - self.yaw))
 
+        # self.reached_goal_ids = torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold
+
         # self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), (abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol)) # for forcing heading!!!!!!!!!
-        self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), torch.logical_or(abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol, self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx] == 0)) # for forcing heading!!!!!!!!!
+        # self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), torch.logical_or(abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol, self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx] == 0)) # for forcing heading!!!!!!!!!
+        self.reached_goal_ids = torch.logical_and((torch.norm(self.root_states[:, :2] - self.cur_goals[:, :2], dim=1) < self.cfg.env.next_goal_threshold), torch.logical_or(torch.logical_or(abs_delta_yaw <= self.cfg.rewards.abs_yaw_tol, self.env_planner_goals[torch.arange(self.env_planner_goals.size(0)), self.cur_goal_idx] == 0),self.cur_goal_idx==0)) # for forcing heading!!!!!!!!!
         
         if self.reached_goal_ids[self.lookat_id] and self.cur_goal_idx[self.lookat_id] == self.goal_idenfication:
             self.goal_idenfication+=1
@@ -379,6 +382,7 @@ class LeggedRobot(BaseTask):
             calls self._post_physics_step_callback() for common computations 
             calls self._draw_debug_vis() if needed
         """
+        
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
@@ -388,12 +392,14 @@ class LeggedRobot(BaseTask):
         self.common_step_counter += 1
 
         # prepare quantities
+        # self.root_states[1:10] = torch.zeros_like(self.root_states[1:10])
+        # self.root_states[1:10]+=self.root_states[0]
         self.base_quat[:] = self.root_states[:, 3:7]
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
         self.base_lin_acc = (self.root_states[:, 7:10] - self.last_root_vel[:, :3]) / self.dt
-
+        # import ipdb; ipdb.set_trace()
         self.roll, self.pitch, self.yaw = euler_from_quaternion(self.base_quat)
 
         contact = torch.norm(self.contact_forces[:, self.feet_indices], dim=-1) > 2.
@@ -405,6 +411,7 @@ class LeggedRobot(BaseTask):
         # self.goal_idenfication = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)[self.lookat_id]
         self._update_goals()
         self._post_physics_step_callback()
+        # import ipdb; ipdb.set_trace()
 
         # compute observations, rewards, resets, ...
         self.check_termination()
@@ -556,6 +563,24 @@ class LeggedRobot(BaseTask):
             target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
             return target_yaw
     
+    def compute_yaw_single(self, cur_goals, root_states, env_ids=None): # yaw should be bounded between -pi and pi!!!!!!!!!!!!!!!!!!!!!!
+        # if env_ids.shape[0]>1:
+        #     target_pos_rel = cur_goals[:2] - root_states[env_ids, :2]
+        # else:
+        if env_ids == None:
+            target_pos_rel = cur_goals[:2] - root_states[:2]
+
+        else:
+            target_pos_rel = cur_goals[:2] - root_states[env_ids, :2]
+
+        norm = torch.norm(target_pos_rel, dim=-1, keepdim=True)
+        target_vec_norm = target_pos_rel / (norm + 1e-5)
+        if env_ids == None:
+            target_yaw = torch.atan2(target_vec_norm[1], target_vec_norm[0])
+        else:
+            target_yaw = torch.atan2(target_vec_norm[:, 1], target_vec_norm[:, 0])
+        return target_yaw
+    
     def compute_yaw_vector(self, cur_goals, root_states, mode=0): # yaw should be bounded between -pi and pi!!!!!!!!!!!!!!!!!!!!!!
         target_pos_rel = cur_goals[:, :2] - root_states[:, :2]
         norm = torch.norm(target_pos_rel, dim=-1, keepdim=True)
@@ -591,14 +616,18 @@ class LeggedRobot(BaseTask):
             cur_pos = self.root_states[:, :3]
             next_planner_goal = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)
             planner_yaw =  self.compute_yaw(next_planner_goal, self.root_states)
-            self._planner_delta_yaw = planner_yaw - self.yaw
+            self._planner_delta_yaw = wrap_to_pi(planner_yaw - self.yaw) # DIDN'T WRAP DURING TRAINING, ONLY TESTING 
+            # self._planner_delta_yaw = planner_yaw - self.yaw 
             self.planner_goal_heu = self.get_planner_goal_heuristic_obs(cur_pos, next_planner_goal)
             # absolute yaw from prev planner pnt to next
             self.prev_planner_goal = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+            same_planner_goal_mask = (next_planner_goal[:,0:2]==self.prev_planner_goal[:,0:2]).all(dim=1)
             self.abs_yaw =  self.compute_yaw(next_planner_goal, self.prev_planner_goal,mode=1)
             self.abs_delta_yaw = wrap_to_pi(self.abs_yaw - self.yaw)
-        # import ipdb; ipdb.set_trace()
+            self.abs_delta_yaw[same_planner_goal_mask] = self.delta_yaw[same_planner_goal_mask]
         # self.commands[:, 0:1]*=self.command_rand # randomize the command by setting set env's command always to 0
+        
+        # print("vel x command", self.commands[:, 0:1])
         obs_buf = torch.cat((#skill_vector, 
                             self.base_ang_vel  * self.obs_scales.ang_vel,   #[1,3]
                             imu_obs,    #[1,2]
@@ -617,6 +646,8 @@ class LeggedRobot(BaseTask):
                             self._planner_delta_yaw[:, None],
                             self.abs_delta_yaw[:, None], # uncomment later
                             ),dim=-1)
+        # import ipdb; ipdb.set_trace()
+        
         priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
                                    0 * self.base_lin_vel,
                                    0 * self.base_lin_vel), dim=-1)
@@ -626,9 +657,13 @@ class LeggedRobot(BaseTask):
             self.motor_strength[0] - 1, 
             self.motor_strength[1] - 1
         ), dim=-1)
+        # import ipdb; ipdb.set_trace()
+
         if self.cfg.terrain.measure_heights:
             heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.3 - self.measured_heights, -1, 1.)
             self.obs_buf = torch.cat([obs_buf, heights, priv_explicit, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
+            # import ipdb; ipdb.set_trace()
+            
         else:
             self.obs_buf = torch.cat([obs_buf, priv_explicit, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
         obs_buf[:, 6:8] = 0  # mask yaw in proprioceptive history
@@ -707,8 +742,13 @@ class LeggedRobot(BaseTask):
                 friction_range = self.cfg.domain_rand.friction_range
                 num_buckets = 64
                 bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
-                friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets,1), device='cpu')
+                # friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets,1), device='cpu')
+                # friction_buckets = torch_rand_float((friction_range[0]+friction_range[1])/2, (friction_range[0]+friction_range[1])/2, (num_buckets,1), device='cpu')
+                friction_buckets = torch_rand_float(1.0, 1.0, (num_buckets,1), device='cpu')
+
+
                 self.friction_coeffs = friction_buckets[bucket_ids]
+
             for s in range(len(props)):
                 props[s].friction = self.friction_coeffs[env_id]
         return props
@@ -901,8 +941,9 @@ class LeggedRobot(BaseTask):
             env_ids (List[int]): Environemnt ids
         """
         # base position
-        if self.custom_origins:
+        if self.custom_origins and not self.cfg.terrain.policy_test:
             self.root_states[env_ids] = self.base_init_state
+            
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
             if self.cfg.env.randomize_start_pos:
                 self.root_states[env_ids, :2] += torch_rand_float(-0.3, 0.3, (len(env_ids), 2), device=self.device) # xy position within 1m of the center
@@ -917,9 +958,34 @@ class LeggedRobot(BaseTask):
             if self.cfg.env.randomize_start_y:
                 self.root_states[env_ids, 1] += self.cfg.env.rand_y_range * torch_rand_float(-1, 1, (len(env_ids), 1), device=self.device).squeeze(1)
             
-        else:
+        elif not self.cfg.terrain.policy_test:
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
+        else:
+            # import ipdb; ipdb.set_trace()
+            self.root_states[env_ids] = self.base_init_state
+            # import ipdb; ipdb.set_trace()
+            first_goal = self.terrain.goals[0]
+            print("self.root_states[env_ids, 0] is: ", self.root_states[env_ids, 0])
+            
+            self.root_states[env_ids, 0] = self.terrain.starting_goal[0] + self.start[0] # self.terrain.goals[0][0][1][0]#self.start[0]# xy position within 1m of the center
+            self.root_states[env_ids, 1] = self.terrain.starting_goal[1] + self.start[1]#self.terrain.goals[0][0][1][1]
+            # self.root_states[env_ids, 1] += torch_rand_float(first_goal[1],first_goal[1] (len(env_ids), 1), device=self.device) # xy position within 1m of the center
+            # self.root_states[env_ids, :3] += torch_rand_float(0.0, 1.0, (len(env_ids), 3), device=self.device) # xyz position within 1m of the center
+            # self.root_states[env_ids, :3] += self.env_origins[env_ids]
+            # rand_yaw = self.cfg.env.rand_yaw_range*torch_rand_float(self.start[2],self.start[2], (len(env_ids), 1), device=self.device).squeeze(1)
+            if self.terrain.two_points:
+                yaw_start = self.compute_yaw_single(torch.tensor(self.cfg.terrain.target).to(self.device), torch.tensor(self.start).to(self.device))
+                # import ipdb; ipdb.set_trace()
+                rand_yaw = torch.zeros(len(env_ids), 1, device=self.device).squeeze(1)+wrap_to_pi(yaw_start.float()) #wrapped yaw
+            else:
+                rand_yaw = torch.zeros(len(env_ids), 1, device=self.device).squeeze(1)+self.start[2]
+            # rand_pitch = self.cfg.env.rand_pitch_range*torch_rand_float(0.0, 0.0, (len(env_ids), 1), device=self.device).squeeze(1)
+            rand_pitch = torch.zeros(len(env_ids), 1, device=self.device).squeeze(1)
+            quat = quat_from_euler_xyz(0*rand_yaw, rand_pitch, rand_yaw) 
+            # import ipdb; ipdb.set_trace()
+            self.root_states[env_ids, 3:7] = quat[:, :]  
+            
         env_ids_int32 = env_ids.to(dtype=torch.int32)
         self.gym.set_actor_root_state_tensor_indexed(self.sim,
                                                      gymtorch.unwrap_tensor(self.root_states),
@@ -954,6 +1020,7 @@ class LeggedRobot(BaseTask):
                                                    torch.randint_like(self.terrain_levels[env_ids], self.max_terrain_level),
                                                    torch.clip(self.terrain_levels[env_ids], 0)) # (the minumum level is zero)
         self.env_origins[env_ids] = self.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
+        # import ipdb; ipdb.set_trace()
         self.env_class[env_ids] = self.terrain_class[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
         
         temp = self.terrain_goals[self.terrain_levels, self.terrain_types]
@@ -1023,6 +1090,8 @@ class LeggedRobot(BaseTask):
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+        # import ipdb; ipdb.set_trace()
+
         if self.cfg.terrain.measure_heights:
             self.height_points = self._init_height_points()
         self.measured_heights = 0
@@ -1296,6 +1365,7 @@ class LeggedRobot(BaseTask):
             self.max_terrain_level = self.cfg.terrain.num_rows
             self.terrain_origins = torch.from_numpy(self.terrain.env_origins).to(self.device).to(torch.float)
             self.env_origins[:] = self.terrain_origins[self.terrain_levels, self.terrain_types]
+            # import ipdb; ipdb.set_trace()
             
             self.terrain_class = torch.from_numpy(self.terrain.terrain_type).to(self.device).to(torch.float)
             self.env_class[:] = self.terrain_class[self.terrain_levels, self.terrain_types]
@@ -1315,6 +1385,7 @@ class LeggedRobot(BaseTask):
             self.cur_goals = self._gather_cur_goals()
             # if 
             self.next_goals = self._gather_cur_goals(future=1)
+            # import ipdb; ipdb.set_trace()
 
         else:
             self.custom_origins = False
