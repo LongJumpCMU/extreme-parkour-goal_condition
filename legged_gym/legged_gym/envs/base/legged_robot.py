@@ -101,6 +101,8 @@ class LeggedRobot(BaseTask):
         self.debug_viz = True
         self.init_done = False
         self.plot_type = self.cfg.terrain.plot_test_type
+        self.plot_size = self.cfg.terrain.obstacle
+
         self._parse_cfg(self.cfg)
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
 
@@ -120,11 +122,13 @@ class LeggedRobot(BaseTask):
         self.figs = []
         self.figs.append(plt.figure())
         self.ax1_plot = []
-        self.ax1_plot.append(self.figs[0].add_subplot(2,1,1))
-        self.ax1_plot.append(self.figs[0].add_subplot(2,1,2))
-        self.figs.append(plt.figure())
-        # self.ax1_plot2 = []
-        self.ax1_plot.append(self.figs[1].add_subplot(1,1,1))
+        self.ax1_plot.append(self.figs[0].add_subplot(3,1,1))
+        self.ax1_plot.append(self.figs[0].add_subplot(3,1,2))
+        self.ax1_plot.append(self.figs[0].add_subplot(3,1,3))
+        if self.cfg.terrain.plot_goal_num > 3:
+            self.figs.append(plt.figure())
+            # self.ax1_plot2 = []
+            self.ax1_plot.append(self.figs[1].add_subplot(1,1,1))
         self.num_variable = 4
         self.num_joints = 12
         
@@ -256,6 +260,9 @@ class LeggedRobot(BaseTask):
         self.gym.end_access_image_tensors(self.sim)
 
     def reset_plot_variables(self):
+        if self.energy != None:
+            print("final energy is: ", torch.sum(self.energy))
+            print("final time is: ", self.time[-1])
         self.time = [0]
         self.joint_variables = torch.zeros((int(self.max_episode_length),self.num_variable,self.num_joints)) # energy, joint torque, joint vel, joint accel, 
         self.energy = None
@@ -266,7 +273,15 @@ class LeggedRobot(BaseTask):
         self.plot_goal_reached = False
         self.goal_idenfication = 0
         # save the plots
-        filenames = ["energy_torque_vel_accel_"+self.plot_type+".png", "time-taken-from-last-waypoint_"+self.plot_type+".png"]
+        if self.plot_type == "gap":
+            name_add = self.plot_type+"_"+str(self.plot_size[1]).replace('.', '_')
+        elif self.plot_type == "block":
+            name_add = self.plot_type+"_"+str(self.plot_size[2]).replace('.', '_')
+        else:
+            name_add = self.plot_type
+
+            
+        filenames = ["energy_torque_vel_accel_"+name_add+".png", "time-taken-from-last-waypoint_"+name_add+".png"]
         for i, fig in enumerate(self.figs):
             fig.savefig(filenames[i])  # Save the figure
 
@@ -345,39 +360,75 @@ class LeggedRobot(BaseTask):
         joint_vel = self.dof_vel[self.lookat_id]
         # self.joint_vel_sub = torch.zeros_like(joint_vel)
         joint_accel =  (joint_vel-self.joint_vel_sub)/self.dt
-        self.time.append(self.time[-1]+self.dt)
-        if self.energy == None:
-            self.energy = torque * torch.abs(joint_vel)
+        # import ipdb; ipdb.set_trace()
+        # print("joint accel is:", joint_accel)
+        
+        self.joint_vel_sub = copy.deepcopy(joint_vel).to(self.device)
+        if self.cur_goal_idx[self.lookat_id] > 1:
+            if self.energy == None:
+                self.energy = torch.abs(torque) * torch.abs(joint_vel)
+                
+            else:
+                self.energy += torch.abs(torque) * torch.abs(joint_vel)
+            self.time.append(self.time[-1]+self.dt)
             
+
+            self.joint_variables[len(self.time)-1, 0, :] = self.energy
+            self.joint_variables[len(self.time)-1, 1, :] = torch.abs(torque)
+            self.joint_variables[len(self.time)-1, 2, :] = torch.abs(joint_vel)
+            self.joint_variables[len(self.time)-1, 3, :] = torch.abs(joint_accel)
+
+            # import ipdb; ipdb.set_trace()
+            joint_sum = torch.sum(self.joint_variables,dim=2)
+            self.ax1_plot[0].clear()
+            self.ax1_plot[1].clear()
+            self.ax1_plot[2].clear()
+
+
+
+            self.ax1_plot[0].plot(self.time, joint_sum[:len(self.time),0], linewidth=5)
+            # self.ax1_plot[0].legend(['energy'])
+            self.ax1_plot[0].set_xlabel("time [s]")
+            self.ax1_plot[0].set_ylabel("Energy (J)")
+
+
+            self.ax1_plot[1].plot(self.time, joint_sum[:len(self.time),1:3], linewidth=5)
+            self.ax1_plot[1].legend(['|Torque| (N*m)','|Joint Vel| (rad/s)'])
+            self.ax1_plot[1].set_xlabel("time [s]")
+            # self.ax1_plot[0].set_ylabel(" (J)")
+
+            # , 'Joint_accel [rad/s^2]
+            self.ax1_plot[2].plot(self.time, joint_sum[:len(self.time),3], linewidth=5)
+            self.ax1_plot[2].set_ylabel('|Joint Acceleration| [rad/s^2]')
+            self.ax1_plot[2].set_xlabel("time [s]")
+
+            # import ipdb; ipdb.set_trace()
+            if self.cfg.terrain.plot_goal_num > 3:
+                self.ax1_plot[3].clear()
+                self.ax1_plot[3].plot(self.way_point_idx[:len(self.way_point_idx)-1], self.all_times[:len(self.way_point_idx)-1], linewidth=5)
+                self.ax1_plot[3].set_ylabel("Time spent [s]")
+                self.ax1_plot[3].set_xlabel("Goal index")
+
         else:
-            self.energy += torque * torch.abs(joint_vel)
-        self.joint_vel_sub = copy.copy(joint_vel).to(self.device)
-
-        self.joint_variables[len(self.time)-1, 0, :] = self.energy
-        self.joint_variables[len(self.time)-1, 1, :] = torque
-        self.joint_variables[len(self.time)-1, 2, :] = joint_vel
-        self.joint_variables[len(self.time)-1, 3, :] = joint_accel
-
-        # import ipdb; ipdb.set_trace()
-        joint_sum = torch.sum(self.joint_variables,dim=2)
-        self.ax1_plot[0].clear()
-        self.ax1_plot[1].clear()
-        self.ax1_plot[2].clear()
+            self.ax1_plot[0].plot([],[])
+            # self.ax1_plot[0].legend(['energy'])
+            self.ax1_plot[0].set_xlabel("time [s]")
+            self.ax1_plot[0].set_ylabel("Energy (J)")
 
 
-        self.ax1_plot[0].plot(self.time, joint_sum[:len(self.time),0])
-        self.ax1_plot[0].legend(['energy'])
+            self.ax1_plot[1].plot([],[])
+            self.ax1_plot[1].legend(['|Torque| (N*m)','|Joint Vel| (rad/s)'])
+            self.ax1_plot[1].set_xlabel("time [s]")
+            # self.ax1_plot[0].set_ylabel(" (J)")
 
-        self.ax1_plot[1].plot(self.time, joint_sum[:len(self.time),1:])
-        self.ax1_plot[1].legend(['torque','joint_vel', 'joint_accel'])
-
-        # import ipdb; ipdb.set_trace()
-        self.ax1_plot[2].plot(self.way_point_idx[:len(self.way_point_idx)-1], self.all_times[:len(self.way_point_idx)-1])
-        self.ax1_plot[2].legend(['time taken from last waypoint'])
+            # , 'Joint_accel [rad/s^2]
+            self.ax1_plot[2].plot([],[])
+            self.ax1_plot[2].set_ylabel('|Joint Acceleration| [rad/s^2]')
+            self.ax1_plot[2].set_xlabel("time [s]")
 
         # joint_accel = joint_vel
         # self.all_times
-        plt.pause(0.001)
+        plt.pause(0.0000001)
         plt.show(block=False)
 
         return
@@ -408,6 +459,7 @@ class LeggedRobot(BaseTask):
         self.last_contacts = contact
         
         # self._update_jump_schedule()
+        # if (self.cur_goal_idx[self.lookat_id] >0):
         self.plot_desired_variables()
         # self.goal_idenfication = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)[self.lookat_id]
         self._update_goals()

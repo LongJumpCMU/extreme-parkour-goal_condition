@@ -45,6 +45,7 @@ class Terrain:
         self.cfg = cfg
         self.num_robots = num_robots
         self.type = cfg.mesh_type
+        self.plot_rough = cfg.plot_rough
         if self.type in ["none", 'plane']:
             return
         self.env_length = cfg.terrain_length
@@ -786,7 +787,8 @@ class Terrain:
                                    num_goals=self.num_goals,
                                    plot_test_type=self.cfg.plot_test_type,
                                    )
-            self.add_roughness(terrain)
+            if self.plot_rough:
+                self.add_roughness(terrain)
         # elif choice < self.proportions[41]:
         #     # gap_distracted_hurdle
         #     idx = 42
@@ -1309,6 +1311,7 @@ def parkour_plot_terrain(terrain,
             if plot_test_type == "gap":
                 stone_len_terrain = stone_len + round(i*0.1 / terrain.horizontal_scale)
             if plot_test_type == "block":
+                # import ipdb; ipdb.set_trace()
                 terrain.height_field_raw[dis_x-stone_len_terrain//2:dis_x+stone_len_terrain//2, ] = height_block + round(i*0.1 / terrain.vertical_scale)
             else:
                 terrain.height_field_raw[dis_x-stone_len_terrain//2:dis_x+stone_len_terrain//2, ] = height_block 

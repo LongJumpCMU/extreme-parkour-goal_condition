@@ -245,7 +245,7 @@ class LeggedRobotCfg(BaseConfig):
 
         # Easy ranges
         class max_ranges:
-            lin_vel_x = [0.3, 0.8] # min max [m/s]
+            lin_vel_x = [0.5, 0.5] # min max [m/s]
             lin_vel_y = [-0.3, 0.3]#[0.15, 0.6]   # min max [m/s]
             ang_vel_yaw = [-0, 0]    # min max [rad/s]
             heading = [-1.6, 1.6]
@@ -301,16 +301,16 @@ class LeggedRobotCfg(BaseConfig):
     class domain_rand:
         randomize_friction = True
         standstill_rand = 0.3 #0.1
-        friction_range = [0.6, 2.]
-        randomize_base_mass = True
+        friction_range = [1.0, 1.0]
+        randomize_base_mass = False
         added_mass_range = [0., 3.]
-        randomize_base_com = True
+        randomize_base_com = False
         added_com_range = [-0.2, 0.2]
-        push_robots = True
+        push_robots = False
         push_interval_s = 8
         max_push_vel_xy = 0.5
 
-        randomize_motor = True
+        randomize_motor = False
         motor_strength_range = [0.8, 1.2]
 
         delay_update_global_steps = 24 * 8000

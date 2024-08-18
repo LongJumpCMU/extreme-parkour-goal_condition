@@ -124,7 +124,7 @@ def play(args):
         env_cfg.terrain.num_goals = args.plot_mode
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = False
-    env_cfg.terrain.max_difficulty = True
+    env_cfg.terrain.max_difficulty = False
     
     env_cfg.depth.angle = [0, 1]
     env_cfg.noise.add_noise = True
@@ -199,9 +199,9 @@ def play(args):
                         step_graphics=True,
                         render_all_camera_sensors=True,
                         wait_for_page_load=True)
-        print("time:", env.episode_length_buf[env.lookat_id].item() / 50, 
-              "cmd vx", env.commands[env.lookat_id, 0].item(),
-              "actual vx", env.base_lin_vel[env.lookat_id, 0].item(), )
+        # print("time:", env.episode_length_buf[env.lookat_id].item() / 50, 
+        #       "cmd vx", env.commands[env.lookat_id, 0].item(),
+        #       "actual vx", env.base_lin_vel[env.lookat_id, 0].item(), )
         
         id = env.lookat_id
         
