@@ -17,7 +17,19 @@ import time
 
 NUM_REGIONS = 0
 
+def compute_yaw_single(cur_goals, root_states): # yaw should be bounded between -pi and pi!!!!!!!!!!!!!!!!!!!!!!
+    # if env_ids.shape[0]>1:
+    #     target_pos_rel = cur_goals[:2] - root_states[env_ids, :2]
+    # else:
 
+    target_pos_rel = cur_goals[:2] - root_states[:2]
+
+    norm = np.linalg.norm(target_pos_rel)
+    target_vec_norm = target_pos_rel / (norm + 1e-5)
+
+    target_yaw = np.arctan2(target_vec_norm[1], target_vec_norm[0])
+
+    return target_yaw
 
 def get_coverage(robot_pos_x, robot_pos_y):
     max_valid_coverage = 1.42
@@ -207,7 +219,7 @@ def valid_waypoint(
         and target_pos[0] <= scandots_range[0][1] + robot_pos_x
         and target_pos[1] >= scandots_range[1][0] + robot_pos_y
         and target_pos[1] <= scandots_range[1][1] + robot_pos_y
-    ):
+    ) or not reset_pnt:
         # form a parmeter around the robot's com so that they won't get used
         # make sure the point is not on a wall and a good distance from the wall (ie. half of robot's length and more)
         # make sure the robot is not out of bounds
@@ -352,8 +364,10 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
             while count_valid_targets < dataset_config["sample_per_region"] and num_valid_resets != 0:
                 for reset_pnt in reset_pnts:
                         transformed_target_pos = np.zeros(2)
-                        transformed_target_pos[0] = random.uniform(starting_x_granularity - abs(scandots_x[-1] - scandots_x[0])/2, starting_x_granularity + abs(scandots_x[-1] - scandots_x[0])/2)
-                        transformed_target_pos[1] = random.uniform(starting_y_granularity - abs(scandots_y[-1] - scandots_y[0])/2, starting_y_granularity + abs(scandots_y[-1] - scandots_y[0])/2)
+                        transformed_target_pos[0] = random.uniform(starting_x_granularity - abs(scandots_x[0]), starting_x_granularity + abs(scandots_x[-1]))
+                        transformed_target_pos[1] = random.uniform(starting_y_granularity - abs(scandots_y[0]), starting_y_granularity + abs(scandots_y[-1]))
+                        starting_point = np.array([starting_x_granularity,starting_y_granularity])
+                        transformed_target_pos = rotate_point(transformed_target_pos, start[0:2], compute_yaw_single(starting_point, np.array([reset_pnt[0], reset_pnt[1]])))
                         while not (valid_waypoint(
                             starting_x_granularity,
                             starting_y_granularity,
