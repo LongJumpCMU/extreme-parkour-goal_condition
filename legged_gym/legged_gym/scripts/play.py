@@ -122,7 +122,8 @@ def play(args):
                                     "gap_distracted_wall": 0.0,
                                     
                                     "plot_terrain": 0.0,
-                                    "policy_test": 0.2
+                                    "policy_test": 0.0,
+                                    "img_creation": 0.2
                                     }
                                     
 

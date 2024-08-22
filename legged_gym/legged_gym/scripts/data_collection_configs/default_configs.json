@@ -10,7 +10,7 @@
     "vertical_scale": 0.005,
     "max_height": 4,
     "min_height": -4,
-    "img_path": "../../../maze.png",
+    "img_path": "../../../env_block.png",
     "saved_data_dir": "dataset",
     "min_target_dis": 0.3, 
     "min_ditch_spawn": -0.5,
@@ -24,6 +24,11 @@
     "add_roughness": false,
     "sample_per_region": 3000,
     "policy_test": true,
-    "start_distance": 0.5
-    
+    "start_distance": 0.5,
+    "start_option": 1,
+    "block_gap_padding": 2,
+    "block_width": 3,
+    "block_length": 3,
+    "terrain_width": 2,
+    "terrain_length": 6
 }

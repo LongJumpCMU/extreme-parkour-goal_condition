@@ -38,6 +38,8 @@ from scipy import ndimage
 from pydelatin import Delatin
 import pyfqmr
 from scipy.ndimage import binary_dilation
+import os
+from PIL import Image
 
 
 class Terrain:
@@ -803,6 +805,25 @@ class Terrain:
                                 ending_offset=self.target,
                                 start_offset=self.start,
                                 two_points=self.two_points) 
+            self.add_roughness(terrain)
+
+        elif choice < self.proportions[43]:
+            # import ipdb; ipdb.set_trace()
+
+            idx = 44
+            self.starting_goal = general_env(terrain,
+                                obstacle=self.cfg.obstacle,
+                                obstacle_block=self.cfg.obstacle_block,
+                                obs_num=self.cfg.obs_num,
+                                obs_choice=self.cfg.obs_choice,
+                                pad_height=0,
+                                x_range=[0.8, 1.5],
+                                y_range=self.cfg.y_range,
+                                half_valid_width=[0.6, 1.2],
+                                ending_offset=self.target,
+                                # invert_env=self.cfg.invert_env, 
+                                env_length=self.env_length,
+                                env_width=self.env_width) 
             self.add_roughness(terrain)
         # elif choice < self.proportions[41]:
         #     # gap_distracted_hurdle
@@ -2023,6 +2044,137 @@ def stepping_stones_terrain(terrain, stone_size, stone_distance, max_height, pla
     y2 = (terrain.length + platform_size) // 2
     terrain.height_field_raw[x1:x2, y1:y2] = 0
     return terrain
+
+
+def create_img(terrain, max_height_meter, min_height_meter, img_name):
+    min_height = min_height_meter / terrain.vertical_scale
+    max_height = max_height_meter / terrain.vertical_scale
+    # min_mag = terrain.height_field_raw+abs(np.min(terrain.height_field_raw))
+    # img = Image.fromarray(min_mag/np.max(min_mag)*255)
+    min_mag = terrain.height_field_raw+abs(min_height)
+    scaled_heights = min_mag/(max_height+abs(min_height))*255
+    img = Image.fromarray(scaled_heights)
+    # wid, hgt = img.size 
+    img = img.convert("L")
+    img.save(os.path.join("../../../../planning-project/data/png_envs", img_name))
+    return img
+
+def general_env(terrain,
+            platform_len=2.5, 
+            platform_height=0.,
+            obstacle=[0.3,0.3,-200],
+            obstacle_block=[1.5,1,1],
+            obs_num = 10,
+            obs_choice = 0,
+            x_range=[1.6, 2.4],
+            y_range=[-1.2, 1.2],
+            half_valid_width=[0.6, 1.2],
+            pad_width=0.1,
+            pad_height=0.5,
+            ending_offset=[0,0],
+            invert_env=False,
+            env_length=18,
+            env_width=4):
+    
+    type = "block"
+    gap_depth = -0.8
+    height = round(obstacle[2] / terrain.vertical_scale)
+    obs_width = round(obstacle[1] / terrain.horizontal_scale)
+
+    height_increment = 0.1
+    height_range = [0.1,1.2]
+    length_range = [0.1,1.2]
+    terrain_width = 2
+    terrain_length = (round((height_range[-1] - height_range[0])/0.1)+1)//terrain_width
+
+    robot_length = 0.688
+    block_width = robot_length*3
+    block_length = block_width
+
+    padding = robot_length*2
+    region_width = round((padding*2+block_width) / terrain.horizontal_scale)
+    region_length = round((padding*2+block_length) / terrain.horizontal_scale)
+
+    block_width = round(robot_length*3 / terrain.horizontal_scale)
+    block_length = block_width
+    
+
+    
+    mid_y = terrain.length // 2  # length is actually y width
+    dis_y_min = round(y_range[0] / terrain.horizontal_scale)
+    dis_y_max = round(y_range[1] / terrain.horizontal_scale)
+
+    platform_len = round(platform_len / terrain.horizontal_scale)
+    platform_height = round(platform_height / terrain.vertical_scale)
+    
+    half_valid_width = round(np.random.uniform(half_valid_width[0], half_valid_width[1]) / terrain.horizontal_scale)*3
+
+
+    dis_x_min = round(x_range[0] / terrain.horizontal_scale) + obs_width
+    dis_x_max = round(x_range[1] / terrain.horizontal_scale) + obs_width
+
+    padding = round(padding / terrain.horizontal_scale)
+    dis_x = padding
+    temp_goal = [platform_len - 1, mid_y]
+
+    for i in range(terrain_length):
+        for j in range(terrain_width):
+            if type == "block":
+                height = round((height_range[0]+(j+i*terrain_width)*height_increment) / terrain.vertical_scale)
+            else:
+                height = round(gap_depth/ terrain.vertical_scale)
+            if type == "gap":
+                block_length = round((length_range[0]+(j+i*terrain_width)*height_increment) / terrain.horizontal_scale) 
+            terrain.height_field_raw[dis_x:dis_x+block_length, padding+j*region_width:padding+j*region_width+block_width] = height
+        dis_x += region_length
+            # import ipdb;ipdb.set_trace()
+
+
+    # terrain.height_field_raw[dis_x-obs_width_block//2 : dis_x+obs_width_block//2, :] = height_block
+    img_name = "env_"+type+".png" 
+
+
+
+    # testing  grescale img
+    # define max height = 1 m and min_height = -1 for scaling greyscale image
+    max_height_meter = 4
+    min_height_meter = -4
+    img = create_img(terrain, max_height_meter, min_height_meter, img_name)
+    img.show()
+
+
+    # save to npy  file
+    file_path = 'easy_obstacle.npy'
+
+    # Save the data to the .npy file
+    np.save(file_path, terrain.height_field_raw*terrain.vertical_scale)
+    import ipdb;ipdb.set_trace()
+
+
+    temp_goal = [terrain.horizontal_scale*(dis_x), terrain.horizontal_scale*(mid_y)]
+    final_dis_x = dis_x + obs_width//2
+
+    if final_dis_x > terrain.width:
+        final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
+    
+    goals = np.array([[temp_goal[0]/terrain.horizontal_scale+ending_offset[0]/terrain.horizontal_scale, 
+                      temp_goal[1]/terrain.horizontal_scale+ending_offset[1]/terrain.horizontal_scale]])
+    
+    terrain.goals = goals * terrain.horizontal_scale
+    
+    goals_original = np.array([[final_dis_x*terrain.horizontal_scale, mid_y*terrain.horizontal_scale]])
+    print("goal is: ", goals_original), print("temp goal is: ", temp_goal)
+    # terrain.height_field_raw[:, :] = 0
+    # pad edges
+    pad_width = int(pad_width // terrain.horizontal_scale)
+    pad_height = int(pad_height // terrain.vertical_scale)
+    # terrain.height_field_raw[:, :pad_width] = pad_height
+    # terrain.height_field_raw[:, -pad_width:] = pad_height
+    # terrain.height_field_raw[:pad_width, :] = pad_height
+    # terrain.height_field_raw[-pad_width:, :] = pad_height
+    import ipdb; ipdb.set_trace()
+    return temp_goal
+
 
 def convert_heightfield_to_trimesh_delatin(height_field_raw, horizontal_scale, vertical_scale, max_error=0.01):
     mesh = Delatin(np.flip(height_field_raw, axis=1).T, z_scale=vertical_scale, max_error=max_error)

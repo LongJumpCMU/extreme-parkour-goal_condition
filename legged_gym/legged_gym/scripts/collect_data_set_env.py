@@ -314,13 +314,58 @@ def all_reset_pnts(distance, start, heading_list, scandot_range, dataset_config,
                             continue
         reset_points.append(reset_pos)
     return reset_points
+
+def get_block_start(dataset_config):
+    robot_len = dataset_config["robot_length"]
+    padding = dataset_config["block_gap_padding"]*robot_len
+    block_width = dataset_config["block_width"]*robot_len
+    block_length = dataset_config["block_length"]*robot_len
+    robot_clearance = dataset_config["robot_clearance"]
+    terrain_length = dataset_config["terrain_length"]
+    terrain_width = dataset_config["terrain_width"]
+    startx = []
+    starty = []
+
+    
+    region_width = padding*2+block_width
+    region_length = padding*2+block_length
+
+    left_edge_pnt = [[padding+block_length+robot_clearance, padding+robot_len/2],[padding+robot_clearance, padding+robot_len/2]] #below and on block for first env, later ones just need to add offset
+    right_edge_pnt = [[padding+block_length+robot_clearance, padding+block_width-robot_len/2],[padding+robot_clearance, padding+block_width-robot_len/2]] 
+    middle_pnt = [[padding+block_length+robot_clearance, padding+block_width/2],[padding+robot_clearance, padding+block_width/2]] 
+
+    single_env_pnts = np.array([left_edge_pnt,middle_pnt,right_edge_pnt])
+    
+    for i in range(terrain_length):
+        for j in range(terrain_width):
+            for k in range(single_env_pnts.shape[0]):
+                # off block
+                startx.append(single_env_pnts[k][0][0]+i*region_length)
+                starty.append(single_env_pnts[k][0][1]+j*region_width)
+                # on block
+                startx.append(single_env_pnts[k][1][0]+i*region_length)
+                starty.append(single_env_pnts[k][1][1]+j*region_width)
+
+    # import ipdb;ipdb.set_trace()
+    
+    return startx,starty
+
+def get_gap_start(dataset_config):
+    return
 def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_map, heading, verbose=False):
     global NUM_REGIONS
     
-    starting_listx,starting_listy = divide_env(height_map,scandots_x,scandots_y,dataset_config)
+    if dataset_config["start_option"]==0:
+        starting_listx,starting_listy = divide_env(height_map,scandots_x,scandots_y,dataset_config)
+        starting_listx = idx2pos(np.array(starting_listx),dataset_config)
+        starting_listy = idx2pos(np.array(starting_listy),dataset_config)
+    elif dataset_config["start_option"]==1: # block
+        starting_listx,starting_listy = get_block_start(dataset_config)
+    elif dataset_config["start_option"]==2:
+        starting_listx,starting_listy = get_gap_start(dataset_config)
+
     
-    starting_listx = idx2pos(np.array(starting_listx),dataset_config)
-    starting_listy = idx2pos(np.array(starting_listy),dataset_config)
+    
     heading_list = generate_heading_list_random(heading)
     start_idx = get_resume_idx(dataset_config)
     NUM_REGIONS = len(starting_listx)
@@ -345,10 +390,16 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
     valid_pair_region = []
     index_region = 0
     
-
+    current_idx = 0
+    y_idx = 0
     for starting_y_granularity in starting_listy:
-        
-        for starting_x_granularity in starting_listx:
+        y_idx += 1
+        if dataset_config["start_option"] == 0:
+            listx = starting_listx
+        else:
+            listx = [starting_listx[y_idx-1]]
+        for starting_x_granularity in listx:
+            current_idx+=1
             if len(valid_pair_region)!=0:
                 all_valid_pairs.append(valid_pair_region)
                 
@@ -394,6 +445,7 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
                         if count_valid_targets < dataset_config["sample_per_region"]:
                             valid_pair_region.append(reset_pnt.tolist()+start.tolist()+transformed_target_pos)
                         count_valid_targets+=1
+                        print("num of valid: ", count_valid_targets, "at starting point: ", current_idx, "total is: ", len(starting_listy))
                         # import ipdb;ipdb.set_trace()
 
                         itr += 1
@@ -473,13 +525,18 @@ def main(args):
                 
     ##################################################################
     heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
-    if not dataset_config["collect_with_planner"]:
+    if not dataset_config["collect_with_planner"] and dataset_config["start_option"]==0:
         all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
-    # import ipdb;ipdb.set_trace()
-    num_regions = all_valid_pairs.shape[0]
-    total_envs = num_regions*num_agents
-    # import ipdb; ipdb.set_trace()
-
+        num_regions = all_valid_pairs.shape[0]
+        total_envs = num_regions*num_agents
+    elif dataset_config["start_option"]==1:
+        starting_listx,starting_listy = get_block_start(dataset_config)
+        num_regions = len(starting_listx)
+        total_envs = num_regions*num_agents
+    elif dataset_config["start_option"]==2:
+        starting_listx,starting_listy = get_gap_start(dataset_config)
+        num_regions = len(starting_listx)
+        total_envs = num_regions*num_agents
 
     
     # all_start = all_valid_pairs[:,0:3]
