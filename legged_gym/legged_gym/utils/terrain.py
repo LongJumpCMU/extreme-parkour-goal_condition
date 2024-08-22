@@ -1282,7 +1282,7 @@ def parkour_plot_terrain(terrain,
     dis_y_max = round(y_range[1] / terrain.horizontal_scale)
 
     # half_valid_width = round(np.random.uniform(y_range[1]+0.2, y_range[1]+1) / terrain.horizontal_scale)
-    half_valid_width = round(np.random.uniform(half_valid_width[0], half_valid_width[1]) / terrain.horizontal_scale)
+    half_valid_width = obs_length_block #round(np.random.uniform(half_valid_width[0], half_valid_width[1]) / terrain.horizontal_scale)
     hurdle_height_max = round(hurdle_height_range[1] / terrain.vertical_scale)
     hurdle_height_min = round(hurdle_height_range[0] / terrain.vertical_scale)
 
@@ -1302,7 +1302,7 @@ def parkour_plot_terrain(terrain,
     last_dis_x = dis_x
     for i in range(num_stones):
         rand_x = dis_x_max#np.random.randint(dis_x_min, dis_x_max)
-        rand_y = (dis_y_min+dis_y_max)//2#np.random.randint(dis_y_min, dis_y_max)
+        # rand_y = (dis_y_min+dis_y_max)//2#np.random.randint(dis_y_min, dis_y_max)            #  Should be 0
         dis_x += rand_x
         if not flat:
             stone_len_terrain = stone_len
@@ -1317,18 +1317,24 @@ def parkour_plot_terrain(terrain,
                 terrain.height_field_raw[dis_x-stone_len_terrain//2:dis_x+stone_len_terrain//2, ] = height_block 
             # import ipdb;ipdb.set_trace()
             
-            terrain.height_field_raw[dis_x-stone_len_terrain//2:dis_x+stone_len_terrain//2, :mid_y+rand_y-half_valid_width] = 0
-            terrain.height_field_raw[dis_x-stone_len_terrain//2:dis_x+stone_len_terrain//2, mid_y+rand_y+half_valid_width:] = 0
+            terrain.height_field_raw[dis_x-stone_len_terrain//2:dis_x+stone_len_terrain//2, :mid_y-half_valid_width] = 0
+            terrain.height_field_raw[dis_x-stone_len_terrain//2:dis_x+stone_len_terrain//2, mid_y+half_valid_width:] = 0
         last_dis_x = dis_x
         if (num_goals > 2):
-            goals[i+1] = [dis_x-rand_x//2, mid_y + rand_y]
+            goals[i+1] = [dis_x-rand_x//2, mid_y]
         else:
-            goals[i] = [dis_x-rand_x//2, mid_y + rand_y]
-    final_dis_x = dis_x + np.random.randint(dis_x_min, dis_x_max)
-    # import ipdb; ipdb.set_trace()
+            goals[i] = [dis_x-rand_x//2, mid_y ]
+
+    theta = 0 * np.pi / 180  # positive theta is clockwise
+    factor = 1 #5/2  # default 1
+    final_dis_x = dis_x - dis_x_max//2 + dis_x_max//factor * np.cos(theta)  #np.random.randint(dis_x_min, dis_x_max)
+   
     if final_dis_x > terrain.width:
         final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
-    goals[-1] = [final_dis_x, mid_y]
+    goals[-1] = [final_dis_x , mid_y - dis_x_max // factor * np.sin(theta)]
+
+    # print("final_dis_x - dis_x + dis_x_max//2: ", final_dis_x - dis_x + dis_x_max//2)   # 50 pixels = 2.5 meters = dis_x_max
+    print("last 2 goal distance (in m): ", (np.sqrt((goals[-1][0] - goals[-2][0])**2 + (goals[-1][1] - goals[-2][1])**2)) * terrain.horizontal_scale)
     
     terrain.goals = goals * terrain.horizontal_scale
     

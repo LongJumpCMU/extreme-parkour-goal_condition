@@ -392,13 +392,13 @@ class LeggedRobot(BaseTask):
             self.ax1_plot[0].set_ylabel("Energy (J)")
 
 
-            self.ax1_plot[1].plot(self.time, joint_sum[:len(self.time),1:3], linewidth=5)
-            self.ax1_plot[1].legend(['|Torque| (N*m)','|Joint Vel| (rad/s)'])
+            self.ax1_plot[1].plot(self.time, joint_sum[:len(self.time),1:3], linewidth=3)
+            self.ax1_plot[1].legend(['|Torque| (Nm)','|Joint Vel| (rad/s)'])
             self.ax1_plot[1].set_xlabel("time [s]")
             # self.ax1_plot[0].set_ylabel(" (J)")
 
             # , 'Joint_accel [rad/s^2]
-            self.ax1_plot[2].plot(self.time, joint_sum[:len(self.time),3], linewidth=5)
+            self.ax1_plot[2].plot(self.time, joint_sum[:len(self.time),3], linewidth=3)
             self.ax1_plot[2].set_ylabel('|Joint Acceleration| [rad/s^2]')
             self.ax1_plot[2].set_xlabel("time [s]")
 
@@ -417,7 +417,7 @@ class LeggedRobot(BaseTask):
 
 
             self.ax1_plot[1].plot([],[])
-            self.ax1_plot[1].legend(['|Torque| (N*m)','|Joint Vel| (rad/s)'])
+            self.ax1_plot[1].legend(['|Torque| (Nm)','|Joint Vel| (rad/s)'])
             self.ax1_plot[1].set_xlabel("time [s]")
             # self.ax1_plot[0].set_ylabel(" (J)")
 
