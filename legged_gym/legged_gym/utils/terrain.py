@@ -2056,7 +2056,7 @@ def create_img(terrain, max_height_meter, min_height_meter, img_name):
     img = Image.fromarray(scaled_heights)
     # wid, hgt = img.size 
     img = img.convert("L")
-    img.save(os.path.join("../../../../planning-project/data/png_envs", img_name))
+    img.save(os.path.join("../../../", img_name))
     return img
 
 def general_env(terrain,
@@ -2076,13 +2076,13 @@ def general_env(terrain,
             env_length=18,
             env_width=4):
     
-    type = "block"
+    type = "hurdle"
     gap_depth = -0.8
     height = round(obstacle[2] / terrain.vertical_scale)
     obs_width = round(obstacle[1] / terrain.horizontal_scale)
 
     height_increment = 0.1
-    height_range = [0.1,1.2]
+    height_range = [0.0,1.1]
     length_range = [0.1,1.2]
     terrain_width = 2
     terrain_length = (round((height_range[-1] - height_range[0])/0.1)+1)//terrain_width
@@ -2090,13 +2090,21 @@ def general_env(terrain,
     robot_length = 0.688
     block_width = robot_length*3
     block_length = block_width
+    hurdle_length = block_width/2
+
 
     padding = robot_length*2
     region_width = round((padding*2+block_width) / terrain.horizontal_scale)
-    region_length = round((padding*2+block_length) / terrain.horizontal_scale)
+
+    if type == "hurdle":
+        region_length = round((padding*2+hurdle_length) / terrain.horizontal_scale)
+    else:
+        region_length = round((padding*2+block_length) / terrain.horizontal_scale)
 
     block_width = round(robot_length*3 / terrain.horizontal_scale)
     block_length = block_width
+    hurdle_length = round(block_width/2)
+
     
 
     
@@ -2119,13 +2127,16 @@ def general_env(terrain,
 
     for i in range(terrain_length):
         for j in range(terrain_width):
-            if type == "block":
+            if type == "block" or type == "hurdle":
                 height = round((height_range[0]+(j+i*terrain_width)*height_increment) / terrain.vertical_scale)
             else:
                 height = round(gap_depth/ terrain.vertical_scale)
             if type == "gap":
                 block_length = round((length_range[0]+(j+i*terrain_width)*height_increment) / terrain.horizontal_scale) 
-            terrain.height_field_raw[dis_x:dis_x+block_length, padding+j*region_width:padding+j*region_width+block_width] = height
+            if type=="hurdle":
+                terrain.height_field_raw[dis_x:dis_x+hurdle_length, padding+j*region_width:padding+j*region_width+block_width] = height
+            else:
+                terrain.height_field_raw[dis_x:dis_x+block_length, padding+j*region_width:padding+j*region_width+block_width] = height
         dis_x += region_length
             # import ipdb;ipdb.set_trace()
 

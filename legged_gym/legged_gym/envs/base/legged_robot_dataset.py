@@ -1894,7 +1894,7 @@ class LeggedRobot_Dataset(BaseTask):
 
         # import ipdb; ipdb.set_trace()
         
-        return heights.reshape((28,len(self.cfg.terrain.measured_points_x_patch),len(self.cfg.terrain.measured_points_y_patch))) * self.terrain.cfg.vertical_scale
+        return heights.reshape((self.num_regions,len(self.cfg.terrain.measured_points_x_patch),len(self.cfg.terrain.measured_points_y_patch))) * self.terrain.cfg.vertical_scale
     
     def set_patch(self, patchx, patchy):
         self.cfg.terrain.measured_points_y_patch = patchy

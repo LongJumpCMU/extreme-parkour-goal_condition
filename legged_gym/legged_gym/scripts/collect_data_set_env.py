@@ -77,6 +77,8 @@ def read_config(json_path):
         config = json.load(file)
     return config
 
+def height2map(height, config):
+    return (height-config["min_height"])/(config["max_height"]-config["min_height"])*255
 def scale_env(map, config):
     scaled_array = np.clip(map.astype(np.int16) * ((config["max_height"]-config["min_height"]) / 255.0)  + config["min_height"], config["min_wall_height"],config["max_wall_height"])
     # scaled_array = map.astype(np.int16) * ((config["max_height"]-config["min_height"]) / 255)  + config["min_height"]
@@ -160,11 +162,12 @@ def is_wall_between_points(height_map, start_x, start_y, target_x, target_y, max
     return False
 
 def on_close_wall_valid(robot_pos_x, robot_pos_y, target_pos_x, target_pos_y, config, map):
-    if is_within_height_limit(map, robot_pos_x,robot_pos_y,np.max(map), config) \
-        and is_distance_safe(map, robot_pos_x,robot_pos_y,config["robot_clearance"],np.max(map),config) \
-        and is_within_height_limit(map, target_pos_x,target_pos_y,np.max(map), config) \
-        and is_distance_safe(map, target_pos_x,target_pos_y,config["robot_clearance"],np.max(map),config) \
-        and not is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,np.max(map),config): # make sure it is not a wall, or close to a wall, or a wall in between start and target point
+    # import ipdb; ipdb.set_trace()
+    if is_within_height_limit(map, robot_pos_x,robot_pos_y,config["max_collision_height"], config) \
+        and is_distance_safe(map, robot_pos_x,robot_pos_y,config["robot_clearance"],config["max_collision_height"],config) \
+        and is_within_height_limit(map, target_pos_x,target_pos_y,config["max_collision_height"], config) \
+        and is_distance_safe(map, target_pos_x,target_pos_y,config["robot_clearance"],config["max_collision_height"],config) \
+        and not is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,config["max_collision_height"],config): # make sure it is not a wall, or close to a wall, or a wall in between start and target point
         
         return True
     
@@ -315,12 +318,16 @@ def all_reset_pnts(distance, start, heading_list, scandot_range, dataset_config,
         reset_points.append(reset_pos)
     return reset_points
 
-def get_block_start(dataset_config):
+def get_block_start(dataset_config, block_type=0): # 0 for block, 1 for hurdle
     robot_len = dataset_config["robot_length"]
     padding = dataset_config["block_gap_padding"]*robot_len
     block_width = dataset_config["block_width"]*robot_len
-    block_length = dataset_config["block_length"]*robot_len
-    robot_clearance = dataset_config["robot_clearance"]
+
+    if dataset_config["start_option"]==3: # hurdle
+        block_length = dataset_config["hurdle_length"]*robot_len
+    else:
+        block_length = dataset_config["block_length"]*robot_len
+    robot_clearance = dataset_config["start_distance"]
     terrain_length = dataset_config["terrain_length"]
     terrain_width = dataset_config["terrain_width"]
     startx = []
@@ -342,9 +349,10 @@ def get_block_start(dataset_config):
                 # off block
                 startx.append(single_env_pnts[k][0][0]+i*region_length)
                 starty.append(single_env_pnts[k][0][1]+j*region_width)
-                # on block
-                startx.append(single_env_pnts[k][1][0]+i*region_length)
-                starty.append(single_env_pnts[k][1][1]+j*region_width)
+                if dataset_config["start_option"]==1: # block
+                    # on block
+                    startx.append(single_env_pnts[k][1][0]+i*region_length)
+                    starty.append(single_env_pnts[k][1][1]+j*region_width)
 
     # import ipdb;ipdb.set_trace()
     
@@ -363,6 +371,8 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
         starting_listx,starting_listy = get_block_start(dataset_config)
     elif dataset_config["start_option"]==2:
         starting_listx,starting_listy = get_gap_start(dataset_config)
+    elif dataset_config["start_option"]==3: # hurdle
+        starting_listx,starting_listy = get_block_start(dataset_config, block_type=1)
 
     
     
@@ -432,13 +442,15 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
                             transformed_target_pos[1], 
                             starting_x_granularity, 
                             starting_y_granularity, 
-                            dataset_config["robot_clearance"], 
+                            dataset_config["start_distance"], 
                             abs(scandots_x[-1] - scandots_x[0]))):
                             print("not valid, keep trying")
                             # randomly select points until it is valid
                             # import ipdb;ipdb.set_trace()
                             transformed_target_pos[0] = random.uniform(starting_x_granularity - abs(scandots_x[-1] - scandots_x[0])/2, starting_x_granularity + abs(scandots_x[-1] - scandots_x[0])/2)
                             transformed_target_pos[1] = random.uniform(starting_y_granularity - abs(scandots_y[-1] - scandots_y[0])/2, starting_y_granularity + abs(scandots_y[-1] - scandots_y[0])/2)
+                            transformed_target_pos = rotate_point(transformed_target_pos, start[0:2], compute_yaw_single(starting_point, np.array([reset_pnt[0], reset_pnt[1]])))
+
                         print("now is valid!!")
                         
                         transformed_target_pos = transformed_target_pos.tolist()
@@ -525,18 +537,20 @@ def main(args):
                 
     ##################################################################
     heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
-    if not dataset_config["collect_with_planner"] and dataset_config["start_option"]==0:
+    if not dataset_config["collect_with_planner"]:# and dataset_config["start_option"]==0:
         all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
         num_regions = all_valid_pairs.shape[0]
         total_envs = num_regions*num_agents
-    elif dataset_config["start_option"]==1:
-        starting_listx,starting_listy = get_block_start(dataset_config)
-        num_regions = len(starting_listx)
-        total_envs = num_regions*num_agents
-    elif dataset_config["start_option"]==2:
-        starting_listx,starting_listy = get_gap_start(dataset_config)
-        num_regions = len(starting_listx)
-        total_envs = num_regions*num_agents
+        # import ipdb;ipdb.set_trace()
+    # elif dataset_config["start_option"]==1:
+    #     starting_listx,starting_listy = get_block_start(dataset_config)
+    #     num_regions = len(starting_listx)
+    #     import ipdb;ipdb.set_trace()
+    #     total_envs = num_regions*num_agents
+    # elif dataset_config["start_option"]==2:
+    #     starting_listx,starting_listy = get_gap_start(dataset_config)
+    #     num_regions = len(starting_listx)
+    #     total_envs = num_regions*num_agents
 
     
     # all_start = all_valid_pairs[:,0:3]
@@ -581,6 +595,8 @@ def main(args):
                                 str(num_agents),
                                 
                                 "--headless",
+                                "--config_path",
+                                args.config_path,
                             ]
                         )
         process.wait()
