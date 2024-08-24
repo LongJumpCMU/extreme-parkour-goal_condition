@@ -2076,7 +2076,7 @@ def general_env(terrain,
             env_length=18,
             env_width=4):
     
-    type = "hurdle"
+    type = "block_2"
     gap_depth = -0.8
     height = round(obstacle[2] / terrain.vertical_scale)
     obs_width = round(obstacle[1] / terrain.horizontal_scale)
@@ -2088,7 +2088,11 @@ def general_env(terrain,
     terrain_length = (round((height_range[-1] - height_range[0])/0.1)+1)//terrain_width
 
     robot_length = 0.688
-    block_width = robot_length*3
+    if type == "block_2":
+        block_width = robot_length*4
+    else:
+        block_width = robot_length*3
+
     block_length = block_width
     hurdle_length = block_width/2
 
@@ -2101,7 +2105,7 @@ def general_env(terrain,
     else:
         region_length = round((padding*2+block_length) / terrain.horizontal_scale)
 
-    block_width = round(robot_length*3 / terrain.horizontal_scale)
+    block_width = round(block_width / terrain.horizontal_scale)
     block_length = block_width
     hurdle_length = round(block_width/2)
 
@@ -2127,7 +2131,7 @@ def general_env(terrain,
 
     for i in range(terrain_length):
         for j in range(terrain_width):
-            if type == "block" or type == "hurdle":
+            if type == "block" or type == "hurdle" or type == "block_2":
                 height = round((height_range[0]+(j+i*terrain_width)*height_increment) / terrain.vertical_scale)
             else:
                 height = round(gap_depth/ terrain.vertical_scale)

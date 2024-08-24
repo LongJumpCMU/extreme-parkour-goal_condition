@@ -172,8 +172,8 @@ class LeggedRobotCfg(BaseConfig):
         max_init_terrain_level = 5 # starting curriculum state
         # terrain_length = 30
         # terrain_width = 10
-        terrain_length = 25
-        terrain_width = 10
+        terrain_length = 33
+        terrain_width = 11
         num_rows= 10 # number of terrain rows (levels)  # spreaded is benifitiall !
         num_cols = 40 # number of terrain cols (types)
         
