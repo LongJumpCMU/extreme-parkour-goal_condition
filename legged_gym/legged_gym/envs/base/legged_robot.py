@@ -343,10 +343,10 @@ class LeggedRobot(BaseTask):
         joint_accel =  (joint_vel-self.joint_vel_sub)/self.dt
         self.time.append(self.time[-1]+self.dt)
         if self.energy == None:
-            self.energy = torque * torch.abs(joint_vel)
+            self.energy = torch.abs(torque) * torch.abs(joint_vel)
             
         else:
-            self.energy += torque * torch.abs(joint_vel)
+            self.energy += torch.abs(torque) * torch.abs(joint_vel)
         self.joint_vel_sub = copy.copy(joint_vel).to(self.device)
 
         self.joint_variables[len(self.time)-1, 0, :] = self.energy

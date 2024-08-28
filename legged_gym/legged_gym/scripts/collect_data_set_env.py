@@ -172,6 +172,30 @@ def is_wall_between_points(height_map, start_x, start_y, target_x, target_y, max
         y = pos2idx(start_y + i * dy / steps,config)
         if abs(height_map[x, y] - height_map[target_map_x, target_map_y]) >= max_wall_height or abs(height_map[x, y] - height_map[start_map_x, start_map_y]) >= max_wall_height:
             # if height_map[x, y] >= max_wall_height:
+            # print("wall is height: ", abs(height_map[x, y] - height_map[target_map_x, target_map_y]))
+            return True
+    return False
+
+def is_wall_between_points_non_diff(height_map, start_x, start_y, target_x, target_y, max_wall_height,config):
+    """
+    Checks if there is a wall between the start and target points based on the specified maximum wall height.
+    """
+    # Calculate the slope of the line between the start and target points
+    dx = target_x - start_x
+    dy = target_y - start_y
+    target_map_x = pos2idx(target_x,config)
+    target_map_y = pos2idx(target_y,config)
+    start_map_x = pos2idx(start_x,config)
+    start_map_y = pos2idx(start_y,config)
+
+
+    # Iterate over the line and check if any point exceeds the maximum wall height
+    steps = pos2idx(max(abs(dx), abs(dy)),config)*5
+    for i in range(steps + 1):
+        x = pos2idx(start_x + i * dx / steps,config)
+        y = pos2idx(start_y + i * dy / steps,config)
+        if abs(height_map[x, y]) >= max_wall_height:
+            # if height_map[x, y] >= max_wall_height:
             return True
     return False
 
@@ -203,13 +227,15 @@ def on_close_wall_valid(robot_pos_x, robot_pos_y, target_pos_x, target_pos_y, co
 
     height_diff_limit = config["height_diff_limit"]
 
-    
-    
+    if config["start_option"] == 7 and not reset:
+        wall_between = not (is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,config["wall_between_height"],config))
+    else:
+        wall_between = is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,height_diff_limit,config)
     if is_within_height_limit(map, robot_pos_x,robot_pos_y,height_limit, config) \
         and is_distance_safe(map, robot_pos_x,robot_pos_y,clearance1,height_diff_limit,config) \
         and is_within_height_limit(map, target_pos_x,target_pos_y,height_limit, config) \
         and is_distance_safe(map, target_pos_x,target_pos_y,clearance2,height_diff_limit,config) \
-        and not is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,height_diff_limit,config): # make sure it is not a wall, or close to a wall, or a wall in between start and target point
+        and not wall_between: #not is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,height_diff_limit,config): # make sure it is not a wall, or close to a wall, or a wall in between start and target point
         if reset:
             return start_reset_diff_check(start_reset_height_limit, robot_pos_x, robot_pos_y, target_pos_x, target_pos_y, map, config) and check_diff_height(map, robot_pos_x, robot_pos_y, target_pos_x, target_pos_y, height_diff_limit,config)
         return True
@@ -217,10 +243,15 @@ def on_close_wall_valid(robot_pos_x, robot_pos_y, target_pos_x, target_pos_y, co
     else:
         return False
 
-def single_valid_waypoint(target_pos_x, target_pos_y, config, map, height_limit, height_close_limit):
+def single_valid_waypoint(robot_pos_x,robot_pos_y,target_pos_x, target_pos_y, config, map, height_limit, height_close_limit,reset_pnt):
     # height_limit = config["max_collision_height"]
+    wall_between = False
+    if config["start_option"] == 7 and not reset_pnt:
+        wall_between = not (is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,config["wall_between_height"],config))
+
     if is_within_height_limit(map, target_pos_x,target_pos_y,height_limit, config) \
-        and is_distance_safe(map, target_pos_x,target_pos_y,config["robot_clearance"],height_close_limit,config):
+        and is_distance_safe(map, target_pos_x,target_pos_y,config["robot_clearance"],height_close_limit,config)\
+            and not wall_between:
         return True
     else:
         return False
@@ -234,9 +265,13 @@ def bounds_valid(map, target_pos_x, target_pos_y,config):
 def divide_heading(num_heading, mode = 'ALL'):
     heading = None
     if mode == 'FRONT':
+        heading = np.linspace(0, np.pi/10, num=num_heading-1)
+    elif mode == 'test':
         heading = np.linspace(-np.pi/2, np.pi/2, num=num_heading-1)
     else:
-        heading = np.linspace(np.pi/3, 2*(np.pi+np.pi/3), num=num_heading-1)
+        # heading = np.linspace(np.pi/3, 2*(np.pi+np.pi/3), num=num_heading-1)
+        heading = np.linspace(-np.pi/3, 2*(np.pi-np.pi/3), num=num_heading-1)
+
     
     return heading
 
@@ -281,7 +316,7 @@ def valid_waypoint(
         if target_distance >= config["min_target_dis"] \
             and bounds_valid(map,target_pos_x,target_pos_y, config) \
             and bounds_valid(map,robot_pos_x,robot_pos_y, config) \
-            and single_valid_waypoint(target_pos_x,target_pos_y,config,map, config["max_collision_height"],config["height_diff_limit"]):
+            and single_valid_waypoint(robot_pos_x,robot_pos_y, target_pos_x,target_pos_y,config,map, config["max_collision_height"],config["height_diff_limit"], reset_pnt):
             if (reset_pnt and not on_close_wall_valid(robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,config,map,reset_pnt)):
                 return False
             elif not reset_pnt:
@@ -367,7 +402,7 @@ def all_reset_pnts(distance, start, heading_list, scandot_range, dataset_config,
                             height_map, 
                             reset_pnt=True
                         ):
-                            print("not valid")
+                            print("reset not valid")
                             
                             continue
         reset_points.append(reset_pos)
@@ -378,12 +413,13 @@ def get_block_start(dataset_config, block_type=0): # 0 for block, 1 for hurdle
     padding = dataset_config["block_gap_padding"]*robot_len
     block_width = dataset_config["block_width"]*robot_len
 
-    if dataset_config["start_option"]==3: # hurdle
+    if dataset_config["start_option"]==3 or dataset_config["start_option"]==7 or dataset_config["start_option"]==6: # hurdle
         block_length = dataset_config["hurdle_length"]*robot_len
     else:
         block_length = dataset_config["block_length"]*robot_len
     robot_clearance = dataset_config["start_distance"]
     terrain_length = dataset_config["terrain_length"]
+    length_start = dataset_config["terrain_start"]
     terrain_width = dataset_config["terrain_width"]
     startx = []
     starty = []
@@ -396,25 +432,70 @@ def get_block_start(dataset_config, block_type=0): # 0 for block, 1 for hurdle
     right_edge_pnt = [[padding+block_length+robot_clearance+dataset_config["start_rand_x"], padding+block_width],[padding+robot_clearance+dataset_config["start_rand_x"]+2*robot_len/3, padding+block_width-2*robot_len/3]] 
     middle_pnt = [[padding+block_length+robot_clearance+dataset_config["start_rand_x"], padding+block_width/2],[padding+robot_clearance, padding+block_width/2]] 
 
-    single_env_pnts = np.array([left_edge_pnt,middle_pnt,right_edge_pnt])
+    if dataset_config["points_before"]==1:
+        single_env_pnts = np.array(middle_pnt)
     
-    for i in range(terrain_length):
+        for i in range(length_start,terrain_length):
+            for j in range(terrain_width):
+                startx.append(single_env_pnts[0][0]+i*region_length)
+                starty.append(single_env_pnts[0][1]+j*region_width)
+    else:
+        single_env_pnts = np.array([left_edge_pnt,middle_pnt,right_edge_pnt])
+        
+        for i in range(length_start,terrain_length):
+            for j in range(terrain_width):
+                # k=0
+                # startx.append(single_env_pnts[k][0][0]+i*region_length)
+                # starty.append(single_env_pnts[k][0][1]+j*region_width)
+                for k in range(single_env_pnts.shape[0]):
+                    # off block
+                    if dataset_config["start_option"]==1 or dataset_config["start_option"]==5 or dataset_config["start_option"]==7: # block
+                        startx.append(single_env_pnts[k][0][0]+i*region_length)
+                        starty.append(single_env_pnts[k][0][1]+j*region_width)
+                    elif dataset_config["start_option"]==4: # block_upper
+                        startx.append(single_env_pnts[k][1][0]+i*region_length)
+                        starty.append(single_env_pnts[k][1][1]+j*region_width)
+                    if dataset_config["start_option"]==1: # block
+                        # on block
+                        startx.append(single_env_pnts[k][1][0]+i*region_length)
+                        starty.append(single_env_pnts[k][1][1]+j*region_width)
+
+    # import ipdb;ipdb.set_trace()
+    
+    return startx,starty
+
+
+
+def get_block_start_verification(dataset_config, block_type=0): # 0 for block, 1 for hurdle
+    robot_len = dataset_config["robot_length"]
+    padding = dataset_config["block_gap_padding"]*robot_len
+    block_width = dataset_config["block_width"]*robot_len
+
+    if dataset_config["start_option"]==3 or dataset_config["start_option"]==6 or dataset_config["start_option"]==7: # hurdle
+        block_length = dataset_config["hurdle_length"]*robot_len
+    else:
+        block_length = dataset_config["block_length"]*robot_len
+    robot_clearance = dataset_config["robot_clearance"]
+    terrain_length = dataset_config["terrain_length"]
+    length_start = dataset_config["terrain_start"]
+    terrain_width = dataset_config["terrain_width"]
+    startx = []
+    starty = []
+
+    
+    region_width = padding*2+block_width
+    region_length = padding*2+block_length
+
+    # left_edge_pnt = [[padding+block_length+robot_clearance+dataset_config["start_rand_x"], padding],[padding+robot_clearance+dataset_config["start_rand_x"]+2*robot_len/3, padding+2*robot_len/3]] #below and on block for first env, later ones just need to add offset
+    # right_edge_pnt = [[padding+block_length+robot_clearance+dataset_config["start_rand_x"], padding+block_width],[padding+robot_clearance+dataset_config["start_rand_x"]+2*robot_len/3, padding+block_width-2*robot_len/3]] 
+    middle_pnt = [[padding+block_length+robot_clearance, padding+block_width/2],[padding+robot_clearance, padding+block_width/2]] 
+
+    single_env_pnts = np.array(middle_pnt)
+    
+    for i in range(length_start,terrain_length):
         for j in range(terrain_width):
-            # k=0
-            # startx.append(single_env_pnts[k][0][0]+i*region_length)
-            # starty.append(single_env_pnts[k][0][1]+j*region_width)
-            for k in range(single_env_pnts.shape[0]):
-                # off block
-                if dataset_config["start_option"]==1: # block
-                    startx.append(single_env_pnts[k][0][0]+i*region_length)
-                    starty.append(single_env_pnts[k][0][1]+j*region_width)
-                elif dataset_config["start_option"]==4: # block_upper
-                    startx.append(single_env_pnts[k][1][0]+i*region_length)
-                    starty.append(single_env_pnts[k][1][1]+j*region_width)
-                if dataset_config["start_option"]==1: # block
-                    # on block
-                    startx.append(single_env_pnts[k][1][0]+i*region_length)
-                    starty.append(single_env_pnts[k][1][1]+j*region_width)
+            startx.append(single_env_pnts[0][0]+i*region_length)
+            starty.append(single_env_pnts[0][1]+j*region_width)
 
     # import ipdb;ipdb.set_trace()
     
@@ -433,12 +514,18 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
         starting_listx,starting_listy = get_block_start(dataset_config)
     elif dataset_config["start_option"]==2:
         starting_listx,starting_listy = get_gap_start(dataset_config)
-    elif dataset_config["start_option"]==3: # hurdle
+    elif dataset_config["start_option"]==3 or dataset_config["start_option"]==7: # hurdle
+        
         starting_listx,starting_listy = get_block_start(dataset_config, block_type=1)
+    elif dataset_config["start_option"]==6:
+        starting_listx,starting_listy = get_block_start_verification(dataset_config, block_type=1)
+
 
     
-    
-    heading_list = generate_heading_list_random(heading)
+    if dataset_config["start_option"]==6:
+        heading_list = divide_heading(2, mode='test')
+    else:
+        heading_list = generate_heading_list_random(heading)
     start_idx = get_resume_idx(dataset_config)
     NUM_REGIONS = len(starting_listx)
     
@@ -464,12 +551,14 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
     
     current_idx = 0
     y_idx = 0
+    # import ipdb;ipdb.set_trace()
     for starting_y_granularity in starting_listy:
         y_idx += 1
         if dataset_config["start_option"] == 0:
             listx = starting_listx
         else:
             listx = [starting_listx[y_idx-1]]
+        
         for starting_x_granularity in listx:
             current_idx+=1
             if len(valid_pair_region)!=0:
@@ -484,7 +573,7 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
             num_valid_resets = len(reset_pnts)
             print("num_valid_resets is: ", num_valid_resets)
             count_valid_targets = 0
-                
+            
             while count_valid_targets < dataset_config["sample_per_region"] and num_valid_resets != 0:
                 x_rand = random.uniform(-dataset_config["start_rand_x"], dataset_config["start_rand_x"])
                 y_rand = random.uniform(-dataset_config["start_rand_y"], dataset_config["start_rand_y"])
@@ -498,8 +587,13 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
                         # reset_pnt_rand = np.array([reset_pnt[0] + x_rand, reset_pnt[1] + y_rand])
 
                         transformed_target_pos = np.zeros(2)
-                        transformed_target_pos[0] = random.uniform(starting_x - abs(scandots_x[0]), starting_x + abs(scandots_x[-1]))
-                        transformed_target_pos[1] = random.uniform(starting_y - abs(scandots_y[0]), starting_y + abs(scandots_y[-1]))
+                        if dataset_config["start_option"]==6:
+                            # import ipdb;ipdb.set_trace()
+                            transformed_target_pos[0] = starting_x + 2.5
+                            transformed_target_pos[1] = starting_y 
+                        else:
+                            transformed_target_pos[0] = random.uniform(starting_x - abs(scandots_x[0]), starting_x + abs(scandots_x[-1]))
+                            transformed_target_pos[1] = random.uniform(starting_y - abs(scandots_y[0]), starting_y + abs(scandots_y[-1]))
                         starting_point = np.array([starting_x,starting_y])
                         transformed_target_pos = rotate_point(transformed_target_pos, start[0:2], compute_yaw_single(starting_point, np.array([reset_pnt[0], reset_pnt[1]])))
                         start_angle = compute_yaw_single(starting_point, np.array([reset_pnt[0], reset_pnt[1]]))
@@ -523,6 +617,10 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
                             # randomly select points until it is valid
                             # import ipdb;ipdb.set_trace()
                             start = np.array([starting_x,starting_y])
+                            # if dataset_config["start_option"]==6:
+                            #     transformed_target_pos[0] = starting_x 
+                            #     transformed_target_pos[1] = starting_y - 2
+                            # else:
                             transformed_target_pos[0] = random.uniform(starting_x - abs(scandots_x[-1] - scandots_x[0])/2, starting_x + abs(scandots_x[-1] - scandots_x[0])/2)
                             transformed_target_pos[1] = random.uniform(starting_y - abs(scandots_y[-1] - scandots_y[0])/2, starting_y + abs(scandots_y[-1] - scandots_y[0])/2)
                             start_angle = compute_yaw_single(starting_point, np.array([reset_pnt[0], reset_pnt[1]]))
@@ -614,7 +712,10 @@ def main(args):
         line = f.readline()
                 
     ##################################################################
-    heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
+    if dataset_config["start_option"]==7:
+        heading_list = divide_heading(dataset_config["heading_divide"], mode='FRONT')
+    else:
+        heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
     if not dataset_config["collect_with_planner"]:# and dataset_config["start_option"]==0:
         all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
         num_regions = all_valid_pairs.shape[0]
@@ -672,7 +773,7 @@ def main(args):
                                 "--num_agents",
                                 str(num_agents),
                                 
-                                "--headless",
+                                # "--headless",
                                 "--config_path",
                                 args.config_path,
                             ]

@@ -128,6 +128,7 @@ class LeggedRobot_Dataset(BaseTask):
         self.reset_cnt = 0
         self.energy_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=sim_device)
         self.time_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.long, device=sim_device)
+        self.time_prev = torch.zeros((self.cfg.env.num_envs), dtype=torch.long, device=sim_device)
         # self.time_cost = []
         self.perform_dict = {"success": [], "energy_cost":[], "time_cost":[]}
         self.reset_cnt_multi_env = torch.zeros((self.cfg.env.num_envs), dtype=torch.int, device=sim_device)
@@ -339,7 +340,7 @@ class LeggedRobot_Dataset(BaseTask):
 
         delta = torch.norm(curr_pos - self.prev_pos, dim=-1)
         indices = (delta > self.DELTA_THRESHOLD).nonzero()
-        self.episode_length_buf += 1
+        # self.episode_length_buf += 1
         self.stationary_itr[indices] += 1
         # if(delta > self.DELTA_THRESHOLD):
         #     self.stationary_itr = 0
@@ -381,16 +382,20 @@ class LeggedRobot_Dataset(BaseTask):
         
         reset_env_count = torch.sum(mask.reshape((self.num_regions,self.num_agents)), dim=1)
 
-        # import ipdb;ipdb.set_trace()
         
         mask_first = self.reset_cnt_multi_env == 1
+        # import ipdb;ipdb.set_trace()
+
         mask_specified = torch.zeros_like(self.episode_length_buf, dtype=torch.bool)
-        mask_specified[env_ids] = True
+        mask_specified[env_ids] = True # the envs that just resetted
+        
 
         # Combine the masks using logical AND
         combined_mask = torch.logical_and(mask_first, mask_specified)
-        combined_mask = torch.logical_and(combined_mask, self.cur_goal_idx > 0)
-        self.time_cost[combined_mask] = self.episode_length_buf[combined_mask]
+        combined_mask = torch.logical_and(mask_specified, self.cur_goal_idx > 0)
+        prev_mask = torch.logical_and(self.reset_cnt_multi_env == 0, self.cur_goal_idx == 0) # the env that hasn't reset once and is going to starting goal
+        self.time_prev[prev_mask] = self.episode_length_buf[prev_mask]
+        self.time_cost[combined_mask] = self.episode_length_buf[combined_mask] - self.time_prev[combined_mask]
         self.success_all |= self.success_buf
         # have an env_id that is continuous such that it remembers the ones that has been reset: self.reset_cnt_multi_env
         # make it such that reset_env_count correspounds to specific env_ids
@@ -402,6 +407,8 @@ class LeggedRobot_Dataset(BaseTask):
             self.perform_dict["success"] = (self.success_all.reshape((self.num_regions,self.num_agents)).cpu()).numpy()
             # import ipdb;ipdb.set_trace()
             self.perform_dict["energy_cost"] = self.energy_cost.reshape((self.num_regions,self.num_agents)).cpu().numpy() #.append(((torch.sum(torch.stack(self.energy_cost),dim=0)).cpu()).numpy().item())
+            # print("energy cost is: ", self.perform_dict["energy_cost"])
+            print("time_prev is: ", self.time_prev*0.02)
             self.perform_dict["time_cost"]=((self.time_cost.reshape((self.num_regions,self.num_agents))*self.dt).cpu()).numpy()
             self.energy_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=self.sim_device)
             # self.time_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=self.sim_device)
@@ -415,14 +422,14 @@ class LeggedRobot_Dataset(BaseTask):
             # import ipdb; ipdb.set_trace()
             # only get the values for the non reset ones
             # specified_indices_tensor = torch.tensor(env_ids)
-            specified_indices_tensor = torch.nonzero(mask).squeeze()
-            # Create a mask for the specified indices
-            specified_mask = torch.zeros_like(self.energy_cost, dtype=torch.bool)
-            specified_mask[specified_indices_tensor] = True
-            specified_mask = torch.logical_and(~specified_mask, self.cur_goal_idx > 0)
+            mask_energy = self.reset_cnt_multi_env >0
+            specified_mask = torch.logical_and(~mask_energy, self.cur_goal_idx > 0)
+            # print("current goal index", self.cur_goal_idx)
+            # print("torques and dof_vel:[", torch.sum(torch.abs(self.torques), dim=1),", ", torch.sum(torch.abs(self.dof_vel), dim=1), "]")
 
-            self.energy_cost[specified_mask] += (self.dt*torch.sum(torch.mul(torch.abs(self.torques), torch.abs(self.dof_vel)), dim=1))[specified_mask]
-            #  for time, it should be both envid and mask = self.reset_cnt_multi_env == 0, it will get stored and not touched again
+            self.energy_cost[specified_mask] += self.dt*(torch.sum(torch.mul(torch.abs(self.torques), torch.abs(self.dof_vel)), dim=1))[specified_mask]
+           
+            # self.time_cost[specified_mask] +=1         #  for time, it should be both envid and mask = self.reset_cnt_multi_env == 0, it will get stored and not touched again
         # print("energy cost is: ", self.energy_cost[:self.num_agents], "and time cost is: ", self.time_cost[:self.num_agents])
                 
             
@@ -1653,24 +1660,24 @@ class LeggedRobot_Dataset(BaseTask):
                 gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
         
 
-        goals = self.terrain_goals[self.terrain_levels[0], self.terrain_types[10]].cpu().numpy()
-        for i, goal in enumerate(goals):
-            goal_xy = goal[:2] + self.terrain.cfg.border_size
-            pts = (goal_xy/self.terrain.cfg.horizontal_scale).astype(int)
-            # import ipdb; ipdb.set_trace()
-            goal_z = self.height_samples[pts[0], pts[1]].cpu().item() * self.terrain.cfg.vertical_scale
-            pose = gymapi.Transform(gymapi.Vec3(goal[0], goal[1], goal_z), r=None)
-            prev_planner_goals = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
-            prev_planner_goal = prev_planner_goals[self.lookat_id].cpu().numpy()
-            pose_prev = gymapi.Transform(gymapi.Vec3(prev_planner_goal[0], prev_planner_goal[1], goal_z), r=None)
+        # goals = self.terrain_goals[self.terrain_levels[0], self.terrain_types[10]].cpu().numpy()
+        # for i, goal in enumerate(goals):
+        #     goal_xy = goal[:2] + self.terrain.cfg.border_size
+        #     pts = (goal_xy/self.terrain.cfg.horizontal_scale).astype(int)
+        #     # import ipdb; ipdb.set_trace()
+        #     goal_z = self.height_samples[pts[0], pts[1]].cpu().item() * self.terrain.cfg.vertical_scale
+        #     pose = gymapi.Transform(gymapi.Vec3(goal[0], goal[1], goal_z), r=None)
+        #     prev_planner_goals = self.get_prev_planner_goal(self.cur_goal_idx, self.env_planner_goals)
+        #     prev_planner_goal = prev_planner_goals[self.lookat_id].cpu().numpy()
+        #     pose_prev = gymapi.Transform(gymapi.Vec3(prev_planner_goal[0], prev_planner_goal[1], goal_z), r=None)
 
-            if i == self.cur_goal_idx[self.lookat_id].cpu().item():
-                gymutil.draw_lines(sphere_geom_cur[int(self.env_planner_goals[self.lookat_id, self.cur_goal_idx[self.lookat_id]].cpu().item())], self.gym, self.viewer, self.envs[self.lookat_id], pose)
-                # gymutil.draw_lines(sphere_geom_cur, self.gym, self.viewer, self.envs[self.lookat_id], pose)
-                if self.reached_goal_ids[self.lookat_id]:
-                    gymutil.draw_lines(sphere_geom_reached, self.gym, self.viewer, self.envs[self.lookat_id], pose)
-            else:
-                gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
+        #     if i == self.cur_goal_idx[self.lookat_id].cpu().item():
+        #         gymutil.draw_lines(sphere_geom_cur[int(self.env_planner_goals[self.lookat_id, self.cur_goal_idx[self.lookat_id]].cpu().item())], self.gym, self.viewer, self.envs[self.lookat_id], pose)
+        #         # gymutil.draw_lines(sphere_geom_cur, self.gym, self.viewer, self.envs[self.lookat_id], pose)
+        #         if self.reached_goal_ids[self.lookat_id]:
+        #             gymutil.draw_lines(sphere_geom_reached, self.gym, self.viewer, self.envs[self.lookat_id], pose)
+        #     else:
+        #         gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
         
         #  show env origin
         # goals = self.env_origins.cpu().numpy()

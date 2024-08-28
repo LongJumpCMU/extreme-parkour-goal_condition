@@ -33,6 +33,7 @@
     "hurdle_length": 1.5,
     "terrain_width": 2,
     "terrain_length": 6,
+    "terrain_start": 0,
     "start_rand_y": 0.3,
     "start_rand_x": 0.125,
     "reset_pnt_height_limit" : 0.001,
@@ -40,6 +41,8 @@
     "max_start_collision_height": 0.7 ,
     "height_diff_limit": 0.1,
     "start_reset_height_limit": 0.3,
-    "special_clearance": 0.1
+    "special_clearance": 0.1,
+    "points_before":3,
+    "on_top": true
     
 }

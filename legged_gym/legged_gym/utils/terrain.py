@@ -824,7 +824,7 @@ class Terrain:
                                 # invert_env=self.cfg.invert_env, 
                                 env_length=self.env_length,
                                 env_width=self.env_width) 
-            self.add_roughness(terrain)
+            # self.add_roughness(terrain)
         # elif choice < self.proportions[41]:
         #     # gap_distracted_hurdle
         #     idx = 42
@@ -2076,7 +2076,7 @@ def general_env(terrain,
             env_length=18,
             env_width=4):
     
-    type = "block_2"
+    type = "hurdle"
     gap_depth = -0.8
     height = round(obstacle[2] / terrain.vertical_scale)
     obs_width = round(obstacle[1] / terrain.horizontal_scale)
