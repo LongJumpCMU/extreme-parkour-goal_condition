@@ -503,7 +503,7 @@ def get_block_start_verification(dataset_config, block_type=0): # 0 for block, 1
 
 def get_gap_start(dataset_config):
     return
-def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_map, heading, verbose=False):
+def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_map, heading, verbose=False, test=False):
     global NUM_REGIONS
     
     if dataset_config["start_option"]==0:
@@ -573,8 +573,12 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
             num_valid_resets = len(reset_pnts)
             print("num_valid_resets is: ", num_valid_resets)
             count_valid_targets = 0
+            if not test:
+                num_samples =dataset_config["sample_per_region"]
+            else:
+                num_samples = 30
             
-            while count_valid_targets < dataset_config["sample_per_region"] and num_valid_resets != 0:
+            while count_valid_targets < num_samples and num_valid_resets != 0:
                 x_rand = random.uniform(-dataset_config["start_rand_x"], dataset_config["start_rand_x"])
                 y_rand = random.uniform(-dataset_config["start_rand_y"], dataset_config["start_rand_y"])
                 starting_x = starting_x_granularity + x_rand
@@ -630,7 +634,7 @@ def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_m
                         print("now is valid!!")
                         
                         transformed_target_pos = transformed_target_pos.tolist()
-                        if count_valid_targets < dataset_config["sample_per_region"]:
+                        if count_valid_targets < num_samples:#dataset_config["sample_per_region"]:
                             valid_pair_region.append(reset_pnt.tolist()+start.tolist()+transformed_target_pos)
                         count_valid_targets+=1
                         print("num of valid: ", count_valid_targets, "at starting point: ", current_idx, "total is: ", len(starting_listy))
@@ -717,7 +721,7 @@ def main(args):
     else:
         heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
     if not dataset_config["collect_with_planner"]:# and dataset_config["start_option"]==0:
-        all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list))
+        all_valid_pairs = np.array(all_valid_pnts(patchx,patchy,SCANDOTS_RANGE,dataset_config, height_map, heading_list,verbose=True, test=True))
         num_regions = all_valid_pairs.shape[0]
         total_envs = num_regions*num_agents
         # import ipdb;ipdb.set_trace()
@@ -773,7 +777,7 @@ def main(args):
                                 "--num_agents",
                                 str(num_agents),
                                 
-                                # "--headless",
+                                "--headless",
                                 "--config_path",
                                 args.config_path,
                             ]

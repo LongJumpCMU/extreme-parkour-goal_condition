@@ -847,6 +847,42 @@ class Terrain:
         #     self.add_roughness(terrain)
         # np.set_printoptions(precision=2)
         # print(np.array(self.proportions), choice)
+
+        elif choice < self.proportions[44]:
+            # import ipdb; ipdb.set_trace()
+
+            idx = 45
+            self.starting_goal = energy_env(terrain,
+                                obstacle=self.cfg.obstacle,
+                                obstacle_block=self.cfg.obstacle_block,
+                                obs_num=self.cfg.obs_num,
+                                obs_choice=self.cfg.obs_choice,
+                                pad_height=0,
+                                x_range=[0.8, 1.5],
+                                y_range=self.cfg.y_range,
+                                half_valid_width=[0.6, 1.2],
+                                ending_offset=self.target,
+                                # invert_env=self.cfg.invert_env,
+                                env_length=self.env_length,
+                                env_width=self.env_width)
+        elif choice < self.proportions[45]:
+            # import ipdb; ipdb.set_trace()
+
+            idx = 46
+            self.starting_goal = node_gen_test_env(terrain,
+                                obstacle=self.cfg.obstacle,
+                                obstacle_block=self.cfg.obstacle_block,
+                                obs_num=self.cfg.obs_num,
+                                obs_choice=self.cfg.obs_choice,
+                                pad_height=0,
+                                x_range=[0.8, 1.5],
+                                y_range=self.cfg.y_range,
+                                half_valid_width=[0.6, 1.2],
+                                ending_offset=self.target,
+                                # invert_env=self.cfg.invert_env,
+                                env_length=self.env_length,
+                                env_width=self.env_width)
+
         terrain.idx = idx
         return terrain
     
@@ -2150,6 +2186,7 @@ def general_env(terrain,
 
 
 
+
     # testing  grescale img
     # define max height = 1 m and min_height = -1 for scaling greyscale image
     max_height_meter = 4
@@ -2189,6 +2226,277 @@ def general_env(terrain,
     # terrain.height_field_raw[-pad_width:, :] = pad_height
     import ipdb; ipdb.set_trace()
     return temp_goal
+
+
+# Test Environments:
+def energy_env(terrain,
+            platform_len=2.5, 
+            platform_height=0.,
+            obstacle=[0.3,0.3,-200],
+            obstacle_block=[1.5,1,1],
+            obs_num = 10,
+            obs_choice = 0,
+            x_range=[1.6, 2.4],
+            y_range=[-1.2, 1.2],
+            half_valid_width=[0.6, 1.2],
+            pad_width=0.1,
+            pad_height=0.5,
+            ending_offset=[0,0],
+            invert_env=False,
+            env_length=18,
+            env_width=4):
+    
+    """
+        ---------------> Y
+        | 
+        |
+        |
+        |
+        |
+        X
+
+        Block1
+                    Wall1 
+        Block2/Gap
+    """
+
+    # Obstacles (x, y, height) =  (length, width, height)
+
+    # Block 1: (2m x 4m x 0.4m) which is 2m away from the starting point in the x direction
+    # Block 2: (1m x 4m x 0.4m) / Gap 1: (0.9m x 4m x -0.5m)
+    # Wall 1: (7m x 1m x 1m) which is 1.5m away from the starting point in the x direction and 4m away from the starting point in the y direction 
+    # Wall 2_1: (1m x 4m x 1m) which is 1.5m away from the starting point in the x direction and 4m away from the starting point in the y direction, 
+    # Wall 2_2 which is midway between Wall 2_1 and Wall 2_2 in the x direction and 4m away from the starting point in the y direction
+    # Wall 3_1:(0.5m x 4m x 1m)  which is (1.5m + length of wall1 - length of wall2) away from the starting point in the x direction and 4m away from the starting point in the y direction
+    # Wall 3_2 which is midway between Wall 2_1 and Wall 3_1 in the x direction and 6m away from the starting point in the y direction
+    # Wall 3_3 which is midway between Wall 3_1 and Wall 3_2 in the x direction and 6m away from the starting point in the y direction
+
+    # Distance between Block 1 and Block 2 in x direction: 3m
+    # Surrounding Wall: (terrain_length x 1m x 1m) and (1m x terrain_width x 1m) if needed!
+
+    # Define the dimensions of the obstacles in meters
+    block1_dims_m = [2, 4, 0.4]
+    block2_dims_m = [1, 4, 0.4]
+    # gap_dims_m = [0.9, 4, -0.5]
+    wall1_dims_m = [7, 1, 1]
+    wall2_dims_m = [1, 4, 1]
+    wall3_dims_m = [0.5, 4, 1]
+
+    # Define the distance of the obstacles top left corner from the starting point in meters
+    block1_top_left_distance_from_start = [2, 0] # 2m away from the starting point in the x direction
+    block2_top_left_distance_from_start = [7, 0] # 3m is the distance between Block 1 and Block 2; 7 = 2 (block1 start_x) + 2 (block1_x) + 3 (distance between block1 and block2)
+    # gap_top_left_distance_from_start = [7, 0] # 3m is the distance between Block 1 and Gap1
+    wall1_top_left_distance_from_start = [1.5, 4] # 1.5m away from the starting point in the x direction and 4m away from the starting point in the y direction
+
+    # Convert the dimensions of the obstacles to pixels
+    block1_dims_pixel = [round(block1_dims_m[0] / terrain.horizontal_scale), round(block1_dims_m[1] / terrain.horizontal_scale), round(block1_dims_m[2] / terrain.vertical_scale)]
+    block2_dims_pixel = [round(block2_dims_m[0] / terrain.horizontal_scale), round(block2_dims_m[1] / terrain.horizontal_scale), round(block2_dims_m[2] / terrain.vertical_scale)]
+    # gap_dims_pixel = [round(gap_dims_m[0] / terrain.horizontal_scale), round(gap_dims_m[1] / terrain.horizontal_scale), round(gap_dims_m[2] / terrain.vertical_scale)]
+    wall1_dims_pixel = [round(wall1_dims_m[0] / terrain.horizontal_scale), round(wall1_dims_m[1] / terrain.horizontal_scale), round(wall1_dims_m[2] / terrain.vertical_scale)]
+    wall2_dims_pixel = [round(wall2_dims_m[0] / terrain.horizontal_scale), round(wall2_dims_m[1] / terrain.horizontal_scale), round(wall2_dims_m[2] / terrain.vertical_scale)]
+    wall3_dims_pixel = [round(wall3_dims_m[0] / terrain.horizontal_scale), round(wall3_dims_m[1] / terrain.horizontal_scale), round(wall3_dims_m[2] / terrain.vertical_scale)]
+
+    # Generate the block 1
+    block1_top_left_pixel = [round(block1_top_left_distance_from_start[0] / terrain.horizontal_scale), round(block1_top_left_distance_from_start[1] / terrain.horizontal_scale)]
+    block1_bottom_right_pixel = [block1_top_left_pixel[0] + block1_dims_pixel[0], block1_top_left_pixel[1] + block1_dims_pixel[1]]
+    terrain.height_field_raw[block1_top_left_pixel[0]:block1_bottom_right_pixel[0], block1_top_left_pixel[1]:block1_bottom_right_pixel[1]] = block1_dims_pixel[2]
+
+    # Generate the block 2
+    block2_top_left_pixel = [round(block2_top_left_distance_from_start[0] / terrain.horizontal_scale), round(block2_top_left_distance_from_start[1] / terrain.horizontal_scale)]
+    block2_bottom_right_pixel = [block2_top_left_pixel[0] + block2_dims_pixel[0], block2_top_left_pixel[1] + block2_dims_pixel[1]]
+    terrain.height_field_raw[block2_top_left_pixel[0]:block2_bottom_right_pixel[0], block2_top_left_pixel[1]:block2_bottom_right_pixel[1]] = block2_dims_pixel[2]
+
+    # Generate the wall 1
+    wall1_top_left_pixel = [round(wall1_top_left_distance_from_start[0] / terrain.horizontal_scale), round(wall1_top_left_distance_from_start[1] / terrain.horizontal_scale)]
+    wall1_bottom_right_pixel = [wall1_top_left_pixel[0] + wall1_dims_pixel[0], wall1_top_left_pixel[1] + wall1_dims_pixel[1]]
+    terrain.height_field_raw[wall1_top_left_pixel[0]:wall1_bottom_right_pixel[0], wall1_top_left_pixel[1]:wall1_bottom_right_pixel[1]] = wall1_dims_pixel[2]
+
+    # #  Generate the wall 2_1
+    # wall2_1_top_left_pixel = [round(wall1_top_left_distance_from_start[0] / terrain.horizontal_scale), round(wall1_top_left_distance_from_start[1] / terrain.horizontal_scale)]
+    # wall2_bottom_right_pixel = [wall2_1_top_left_pixel[0] + wall2_dims_pixel[0], wall2_1_top_left_pixel[1] + wall2_dims_pixel[1]]
+    # terrain.height_field_raw[wall2_1_top_left_pixel[0]:wall2_bottom_right_pixel[0], wall2_1_top_left_pixel[1]:wall2_bottom_right_pixel[1]] = wall2_dims_pixel[2]
+
+    # #  Generate the wall 2_2
+    # wall2_2_top_left_pixel = [round((wall1_top_left_distance_from_start[0] + wall1_dims_m[0] - wall2_dims_m[0]) / terrain.horizontal_scale), round(wall1_top_left_distance_from_start[1] / terrain.horizontal_scale)]
+    # wall2_bottom_right_pixel = [wall2_2_top_left_pixel[0] + wall2_dims_pixel[0], wall2_2_top_left_pixel[1] + wall2_dims_pixel[1]]
+    # terrain.height_field_raw[wall2_2_top_left_pixel[0]:wall2_bottom_right_pixel[0], wall2_2_top_left_pixel[1]:wall2_bottom_right_pixel[1]] = wall2_dims_pixel[2]
+
+    # #  Generate the wall 3_1
+    # wall_3_1_top_left_pixel = [round((wall1_top_left_distance_from_start[0] + wall1_dims_m[0]/2 - wall3_dims_m[0]/2) / terrain.horizontal_scale), round(wall1_top_left_distance_from_start[1] / terrain.horizontal_scale)]
+    # wall3_bottom_right_pixel = [wall_3_1_top_left_pixel[0] + wall3_dims_pixel[0], wall_3_1_top_left_pixel[1] + wall3_dims_pixel[1]]
+    # terrain.height_field_raw[wall_3_1_top_left_pixel[0]:wall3_bottom_right_pixel[0], wall_3_1_top_left_pixel[1]:wall3_bottom_right_pixel[1]] = wall3_dims_pixel[2]
+
+    # #  Generate the wall 3_2
+    # wall_3_2_top_left_pixel = [round(((wall1_top_left_distance_from_start[0] + wall1_top_left_distance_from_start[0] + wall1_dims_m[0]/2 - wall3_dims_m[0]/2 + 0.5)/2) / terrain.horizontal_scale), round((wall1_top_left_distance_from_start[1]+2 )/ terrain.horizontal_scale)]
+    # wall3_bottom_right_pixel = [wall_3_2_top_left_pixel[0] + wall3_dims_pixel[0], wall_3_2_top_left_pixel[1] + wall3_dims_pixel[1]]
+    # terrain.height_field_raw[wall_3_2_top_left_pixel[0]:wall3_bottom_right_pixel[0], wall_3_2_top_left_pixel[1]:wall3_bottom_right_pixel[1]] = wall3_dims_pixel[2]
+
+    # #  Generate the wall 3_3
+    # wall_3_3_top_left_pixel = [round(((wall1_top_left_distance_from_start[0] + wall1_dims_m[0] - wall2_dims_m[0] + wall1_top_left_distance_from_start[0] + wall1_dims_m[0]/2 - wall3_dims_m[0]/2)/2) / terrain.horizontal_scale), round((wall1_top_left_distance_from_start[1]+2 )/ terrain.horizontal_scale)]
+    # wall3_bottom_right_pixel = [wall_3_3_top_left_pixel[0] + wall3_dims_pixel[0], wall_3_3_top_left_pixel[1] + wall3_dims_pixel[1]]
+    # terrain.height_field_raw[wall_3_3_top_left_pixel[0]:wall3_bottom_right_pixel[0], wall_3_3_top_left_pixel[1]:wall3_bottom_right_pixel[1]] = wall3_dims_pixel[2]
+
+
+
+
+    # testing  grescale img
+    # type = "energy_hurdle"                                                                                            # Let's change this to "block" or "gap" or "hurdle" or "block_2"
+    type = "energy_flat"                                                                                            # Let's change this to "block" or "gap" or "hurdle" or "block_2"
+
+    img_name = "env_"+type+".png"                                                                                           # CHANGE THIS NAME!!!!!!!!!!!
+
+
+
+    # testing  grescale img
+    # define max height = 1 m and min_height = -1 for scaling greyscale image
+    max_height_meter = 4
+    min_height_meter = -4
+    img = create_img(terrain, max_height_meter, min_height_meter, img_name)
+    img.show()
+
+
+    # save to npy  file
+    file_path = 'easy_obstacle.npy'
+
+    # Save the data to the .npy file
+    np.save(file_path, terrain.height_field_raw*terrain.vertical_scale)
+    import ipdb;ipdb.set_trace()
+
+
+    temp_goal = [terrain.horizontal_scale*(dis_x), terrain.horizontal_scale*(mid_y)]
+    final_dis_x = dis_x + obs_width//2
+
+    if final_dis_x > terrain.width:
+        final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
+    
+    goals = np.array([[temp_goal[0]/terrain.horizontal_scale+ending_offset[0]/terrain.horizontal_scale, 
+                      temp_goal[1]/terrain.horizontal_scale+ending_offset[1]/terrain.horizontal_scale]])
+    
+    terrain.goals = goals * terrain.horizontal_scale
+    
+    goals_original = np.array([[final_dis_x*terrain.horizontal_scale, mid_y*terrain.horizontal_scale]])
+    print("goal is: ", goals_original), print("temp goal is: ", temp_goal)
+    # terrain.height_field_raw[:, :] = 0
+    # pad edges
+    pad_width = int(pad_width // terrain.horizontal_scale)
+    pad_height = int(pad_height // terrain.vertical_scale)
+    # terrain.height_field_raw[:, :pad_width] = pad_height
+    # terrain.height_field_raw[:, -pad_width:] = pad_height
+    # terrain.height_field_raw[:pad_width, :] = pad_height
+    # terrain.height_field_raw[-pad_width:, :] = pad_height
+    import ipdb; ipdb.set_trace()
+    return temp_goal
+
+def node_gen_test_env(terrain,
+            platform_len=2.5, 
+            platform_height=0.,
+            obstacle=[0.3,0.3,-200],
+            obstacle_block=[1.5,1,1],
+            obs_num = 10,
+            obs_choice = 0,
+            x_range=[1.6, 2.4],
+            y_range=[-1.2, 1.2],
+            half_valid_width=[0.6, 1.2],
+            pad_width=0.1,
+            pad_height=0.5,
+            ending_offset=[0,0],
+            invert_env=False,
+            env_length=18,
+            env_width=4):
+    
+    """
+        ---------------> Y
+        | 
+        |
+        |
+        |
+        |
+        X
+
+        Block1
+                    Wall1 
+        Block2/Gap
+    """
+
+    # Obstacles (x, y, height) =  (length, width, height)
+
+    # Block 1: (2m x 4m x 0.4m) which is 2m away from the starting point in the x direction
+    # Block 2: (1m x 4m x 0.4m) / Gap 1: (0.9m x 4m x -0.5m)
+    # Wall 1: (7m x 1m x 1m) which is 1.5m away from the starting point in the x direction and 4m away from the starting point in the y direction 
+    # Wall 2_1: (1m x 4m x 1m) which is 1.5m away from the starting point in the x direction and 4m away from the starting point in the y direction, 
+    # Wall 2_2 which is midway between Wall 2_1 and Wall 2_2 in the x direction and 4m away from the starting point in the y direction
+    # Wall 3_1:(0.5m x 4m x 1m)  which is (1.5m + length of wall1 - length of wall2) away from the starting point in the x direction and 4m away from the starting point in the y direction
+    # Wall 3_2 which is midway between Wall 2_1 and Wall 3_1 in the x direction and 6m away from the starting point in the y direction
+    # Wall 3_3 which is midway between Wall 3_1 and Wall 3_2 in the x direction and 6m away from the starting point in the y direction
+
+    # Distance between Block 1 and Block 2 in x direction: 3m
+    # Surrounding Wall: (terrain_length x 1m x 1m) and (1m x terrain_width x 1m) if needed!
+
+    # Define the dimensions of the obstacles in meters
+    block1_dims_m = [0.2, 0.5, 0]
+   
+    # Define the distance of the obstacles top left corner from the starting point in meters
+    block1_top_left_distance_from_start = [2, 0] # 2m away from the starting point in the x direction
+    
+    # Convert the dimensions of the obstacles to pixels
+    block1_dims_pixel = [round(block1_dims_m[0] / terrain.horizontal_scale), round(block1_dims_m[1] / terrain.horizontal_scale), round(block1_dims_m[2] / terrain.vertical_scale)]
+   
+    block1_top_left_pixel = [round(block1_top_left_distance_from_start[0] / terrain.horizontal_scale), round(block1_top_left_distance_from_start[1] / terrain.horizontal_scale)]
+    block1_bottom_right_pixel = [block1_top_left_pixel[0] + block1_dims_pixel[0], block1_top_left_pixel[1] + block1_dims_pixel[1]]
+    terrain.height_field_raw[block1_top_left_pixel[0]:block1_bottom_right_pixel[0], block1_top_left_pixel[1]:block1_bottom_right_pixel[1]] = block1_dims_pixel[2]
+
+
+
+
+    # testing  grescale img
+    # type = "energy_hurdle"                                                                                            # Let's change this to "block" or "gap" or "hurdle" or "block_2"
+    type = "node_gen_flat"                                                                                            # Let's change this to "block" or "gap" or "hurdle" or "block_2"
+
+    img_name = "env_"+type+".png"                                                                                           # CHANGE THIS NAME!!!!!!!!!!!
+
+
+
+    # testing  grescale img
+    # define max height = 1 m and min_height = -1 for scaling greyscale image
+    max_height_meter = 4
+    min_height_meter = -4
+    img = create_img(terrain, max_height_meter, min_height_meter, img_name)
+    img.show()
+
+
+    # save to npy  file
+    file_path = 'easy_obstacle.npy'
+
+    # Save the data to the .npy file
+    np.save(file_path, terrain.height_field_raw*terrain.vertical_scale)
+    import ipdb;ipdb.set_trace()
+
+
+    temp_goal = [terrain.horizontal_scale*(dis_x), terrain.horizontal_scale*(mid_y)]
+    final_dis_x = dis_x + obs_width//2
+
+    if final_dis_x > terrain.width:
+        final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
+    
+    goals = np.array([[temp_goal[0]/terrain.horizontal_scale+ending_offset[0]/terrain.horizontal_scale, 
+                      temp_goal[1]/terrain.horizontal_scale+ending_offset[1]/terrain.horizontal_scale]])
+    
+    terrain.goals = goals * terrain.horizontal_scale
+    
+    goals_original = np.array([[final_dis_x*terrain.horizontal_scale, mid_y*terrain.horizontal_scale]])
+    print("goal is: ", goals_original), print("temp goal is: ", temp_goal)
+    # terrain.height_field_raw[:, :] = 0
+    # pad edges
+    pad_width = int(pad_width // terrain.horizontal_scale)
+    pad_height = int(pad_height // terrain.vertical_scale)
+    # terrain.height_field_raw[:, :pad_width] = pad_height
+    # terrain.height_field_raw[:, -pad_width:] = pad_height
+    # terrain.height_field_raw[:pad_width, :] = pad_height
+    # terrain.height_field_raw[-pad_width:, :] = pad_height
+    import ipdb; ipdb.set_trace()
+    return temp_goal
+
+
 
 
 def convert_heightfield_to_trimesh_delatin(height_field_raw, horizontal_scale, vertical_scale, max_error=0.01):

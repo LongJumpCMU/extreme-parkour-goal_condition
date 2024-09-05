@@ -21,7 +21,7 @@
     "min_wall_height": -10,
     "max_collision_height": 4.0,
     "collect_with_planner": false,
-    "data_file": "dataset_block_world.csv",
+    "data_file": "dataset_block_world_down.csv",
     "add_roughness": false,
     "sample_per_region": 3000,
     "policy_test": true,
@@ -43,6 +43,6 @@
     "start_reset_height_limit": 0.3,
     "special_clearance": 0.1,
     "points_before":3,
-    "on_top": true
+    "on_top": false
     
 }

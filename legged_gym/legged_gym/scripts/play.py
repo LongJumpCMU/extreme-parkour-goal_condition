@@ -123,7 +123,9 @@ def play(args):
                                     
                                     "plot_terrain": 0.0,
                                     "policy_test": 0.0,
-                                    "img_creation": 0.2
+                                    "img_creation": 0.0,
+                                    "energy_terrain": 0.0,
+                                    "node_gen_test": 0.2,
                                     }
                                     
 
