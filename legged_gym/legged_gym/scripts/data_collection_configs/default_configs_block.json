@@ -21,12 +21,12 @@
     "min_wall_height": -10,
     "max_collision_height": 4.0,
     "collect_with_planner": false,
-    "data_file": "dataset_block_world_down.csv",
+    "data_file": "dataset_block_world_going_up_test.csv",
     "add_roughness": false,
     "sample_per_region": 3000,
     "policy_test": true,
     "start_distance": 0.5,
-    "start_option": 4,
+    "start_option": 5,
     "block_gap_padding": 2,
     "block_width": 4,
     "block_length": 4,
@@ -43,6 +43,6 @@
     "start_reset_height_limit": 0.3,
     "special_clearance": 0.1,
     "points_before":3,
-    "on_top": false
+    "on_top": true
     
 }

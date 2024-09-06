@@ -384,6 +384,8 @@ class LeggedRobot_Dataset(BaseTask):
 
         
         mask_first = self.reset_cnt_multi_env == 1
+        mask_zero_first = self.reset_cnt_multi_env == 0
+
         # import ipdb;ipdb.set_trace()
 
         mask_specified = torch.zeros_like(self.episode_length_buf, dtype=torch.bool)
@@ -395,8 +397,8 @@ class LeggedRobot_Dataset(BaseTask):
         combined_mask = torch.logical_and(mask_specified, self.cur_goal_idx > 0)
         prev_mask = torch.logical_and(self.reset_cnt_multi_env == 0, self.cur_goal_idx == 0) # the env that hasn't reset once and is going to starting goal
         self.time_prev[prev_mask] = self.episode_length_buf[prev_mask]
-        self.time_cost[combined_mask] = self.episode_length_buf[combined_mask] - self.time_prev[combined_mask]
-        self.success_all |= self.success_buf
+        # self.time_cost[combined_mask] = self.episode_length_buf[combined_mask] - self.time_prev[combined_mask]
+        self.success_all[mask_first] |= self.success_buf[mask_first]
         # have an env_id that is continuous such that it remembers the ones that has been reset: self.reset_cnt_multi_env
         # make it such that reset_env_count correspounds to specific env_ids
         mask_reset_count = reset_env_count >= self.num_agents
@@ -429,7 +431,7 @@ class LeggedRobot_Dataset(BaseTask):
 
             self.energy_cost[specified_mask] += self.dt*(torch.sum(torch.mul(torch.abs(self.torques), torch.abs(self.dof_vel)), dim=1))[specified_mask]
            
-            # self.time_cost[specified_mask] +=1         #  for time, it should be both envid and mask = self.reset_cnt_multi_env == 0, it will get stored and not touched again
+            self.time_cost[specified_mask] +=1         #  for time, it should be both envid and mask = self.reset_cnt_multi_env == 0, it will get stored and not touched again
         # print("energy cost is: ", self.energy_cost[:self.num_agents], "and time cost is: ", self.time_cost[:self.num_agents])
                 
             
