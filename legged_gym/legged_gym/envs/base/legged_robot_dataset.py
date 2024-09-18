@@ -413,7 +413,7 @@ class LeggedRobot_Dataset(BaseTask):
             print("time_prev is: ", self.time_prev*0.02)
             self.perform_dict["time_cost"]=((self.time_cost.reshape((self.num_regions,self.num_agents))*self.dt).cpu()).numpy()
             self.energy_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=self.sim_device)
-            # self.time_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=self.sim_device)
+            self.time_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=self.sim_device)
             specified_indices_tensor = torch.nonzero(mask).squeeze()
             self.reset_idx(specified_indices_tensor)
             self.success_all = torch.zeros((self.num_envs, ), dtype=torch.bool, device=self.device)

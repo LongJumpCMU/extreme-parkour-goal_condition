@@ -2450,7 +2450,7 @@ def node_gen_test_env(terrain,
 
     # testing  grescale img
     # type = "energy_hurdle"                                                                                            # Let's change this to "block" or "gap" or "hurdle" or "block_2"
-    type = "node_gen_flat"                                                                                            # Let's change this to "block" or "gap" or "hurdle" or "block_2"
+    type = "node_gen_flat10_10"                                                                                            # Let's change this to "block" or "gap" or "hurdle" or "block_2"
 
     img_name = "env_"+type+".png"                                                                                           # CHANGE THIS NAME!!!!!!!!!!!
 
