@@ -2112,8 +2112,8 @@ def general_env(terrain,
             env_length=18,
             env_width=4):
     
-    type = "hurdle"
-    gap_depth = -0.8
+    type = "gap"
+    gap_depth = -0.5
     height = round(obstacle[2] / terrain.vertical_scale)
     obs_width = round(obstacle[1] / terrain.horizontal_scale)
 

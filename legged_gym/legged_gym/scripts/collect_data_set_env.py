@@ -227,7 +227,7 @@ def on_close_wall_valid(robot_pos_x, robot_pos_y, target_pos_x, target_pos_y, co
 
     height_diff_limit = config["height_diff_limit"]
 
-    if config["start_option"] == 7 and not reset:
+    if config["start_option"] == 7 or config["start_option"] == 2 and not reset:
         wall_between = not (is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,config["wall_between_height"],config))
     else:
         wall_between = is_wall_between_points(map, robot_pos_x,robot_pos_y,target_pos_x,target_pos_y,height_diff_limit,config)
@@ -502,7 +502,51 @@ def get_block_start_verification(dataset_config, block_type=0): # 0 for block, 1
     return startx,starty
 
 def get_gap_start(dataset_config):
-    return
+    robot_len = dataset_config["robot_length"]
+    padding = dataset_config["block_gap_padding"]*robot_len
+    gap_start_width = dataset_config["block_width"]*robot_len
+
+    if dataset_config["start_option"]==3 or dataset_config["start_option"]==7 or dataset_config["start_option"]==6: # hurdle
+        block_length = dataset_config["hurdle_length"]*robot_len
+    # elif dataset_config["start_option"]==2:
+    #     block_length = dataset_config["gap_start_length"]
+    else:
+        block_length = dataset_config["block_length"]*robot_len
+    robot_clearance = dataset_config["start_distance"]
+    terrain_length = dataset_config["terrain_length"]
+    length_start = dataset_config["terrain_start"]
+    terrain_width = dataset_config["terrain_width"]
+    startx = []
+    starty = []
+
+    
+    region_width = padding*2+gap_start_width
+    region_length = padding*2+block_length#0.1*(length_start*2+1)
+
+    left_edge_pnt = [[padding+robot_clearance+dataset_config["start_rand_x"], padding],[padding+robot_clearance+dataset_config["start_rand_x"]+2*robot_len/3, padding+2*robot_len/3]] #below and on block for first env, later ones just need to add offset
+    right_edge_pnt = [[padding+robot_clearance+dataset_config["start_rand_x"], padding+gap_start_width],[padding+robot_clearance+dataset_config["start_rand_x"]+2*robot_len/3, padding+gap_start_width-2*robot_len/3]] 
+    middle_pnt = [[padding+robot_clearance+dataset_config["start_rand_x"], padding+gap_start_width/2],[padding+robot_clearance, padding+gap_start_width/2]] 
+
+    if dataset_config["points_before"]==1:
+        single_env_pnts = np.array(middle_pnt)
+    
+        for i in range(length_start,terrain_length):
+            for j in range(terrain_width):
+                startx.append(single_env_pnts[0][0]+i*region_length)
+                starty.append(single_env_pnts[0][1]+j*region_width)
+            
+    else:
+        single_env_pnts = np.array([left_edge_pnt,middle_pnt,right_edge_pnt])
+        
+        for i in range(length_start,terrain_length):
+            for j in range(terrain_width):
+                for k in range(single_env_pnts.shape[0]):
+                    # off block
+                    if dataset_config["start_option"]==2 : # block
+                        startx.append(single_env_pnts[k][0][0]+i*region_length+(j+i*terrain_width)*dataset_config["gap_increment"])
+                        starty.append(single_env_pnts[k][0][1]+j*region_width)
+    return startx,starty
+
 def all_valid_pnts(scandots_x,scandots_y,SCANDOTS_RANGE,dataset_config, height_map, heading, verbose=False, test=False):
     global NUM_REGIONS
     
@@ -716,7 +760,7 @@ def main(args):
         line = f.readline()
                 
     ##################################################################
-    if dataset_config["start_option"]==7:
+    if dataset_config["start_option"]==7 or dataset_config["start_option"]==2:
         heading_list = divide_heading(dataset_config["heading_divide"], mode='FRONT')
     else:
         heading_list = divide_heading(dataset_config["heading_divide"]) #[np.pi/3]
