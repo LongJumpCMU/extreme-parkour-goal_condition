@@ -125,7 +125,10 @@ def play(args):
                                     "policy_test": 0.0,
                                     "img_creation": 0.0,
                                     "energy_terrain": 0.0,
-                                    "node_gen_test": 0.2,
+                                    "node_gen_test": 0.0,
+                                    "easy_energy_env": 0.0,
+                                    "easy_time_env": 0.0,
+                                    "long_horizon_time_env": 0.2,
                                     }
                                     
 
