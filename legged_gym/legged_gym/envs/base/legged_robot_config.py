@@ -167,6 +167,12 @@ class LeggedRobotCfg(BaseConfig):
         measured_points_y = [-0.75, -0.6, -0.45, -0.3, -0.15, 0., 0.15, 0.3, 0.45, 0.6, 0.75]
         measure_horizontal_noise = 0.0
 
+        robot_len = 0.688
+        width = [-2,2]
+        length = [-2,3]
+        measured_points_x_patch = np.arange(length[0]*robot_len, length[1]*robot_len, 0.15)
+        measured_points_y_patch = np.arange(width[0]*robot_len, width[1]*robot_len, 0.15)
+
         selected = False # select a unique terrain type and pass all arguments
         terrain_kwargs = None # Dict of arguments for selected terrain
         max_init_terrain_level = 5 # starting curriculum state

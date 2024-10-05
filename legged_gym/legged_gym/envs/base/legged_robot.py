@@ -486,6 +486,7 @@ class LeggedRobot(BaseTask):
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
             self.gym.clear_lines(self.viewer)
             self._draw_height_samples()
+            self._draw_patch_outline()
             self._draw_goals()
             self._draw_feet()
             if self.cfg.depth.use_camera:
@@ -746,6 +747,17 @@ class LeggedRobot(BaseTask):
         cam_pos = gymapi.Vec3(position[0], position[1], position[2])
         cam_target = gymapi.Vec3(lookat[0], lookat[1], lookat[2])
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
+        # self.gym.set_light_parameters(self.sim, 0, gymapi.Vec3(0.1,0.1,0.1), gymapi.Vec3(0.6,0.6,0.6), cam_target) # (sim, light_index, intensity, ambient, direction)
+        # self.gym.set_light_parameters(self.sim, 0, gymapi.Vec3(0.0,0.0,0.0), gymapi.Vec3(1.0,1.0,1.0), cam_target) # (sim, light_index, intensity, ambient, direction)
+        # self.gym.set_light_parameters(self.sim, 0, gymapi.Vec3(1.0,1.0,1.0), gymapi.Vec3(0.0,0.0,0.0), cam_target) # (sim, light_index, intensity, ambient, direction)
+        # self.gym.set_light_parameters(self.sim, 0, gymapi.Vec3(0.5,0.4,0.1), gymapi.Vec3(0.5,0.5,0.5), cam_target) # (sim, light_index, intensity, ambient, direction) yellowish
+        # self.gym.set_light_parameters(self.sim, 0, gymapi.Vec3(0.5,0.5,0.5), gymapi.Vec3(0.2,0.2,0.2), cam_target) # (sim, light_index, intensity, ambient, direction)
+        # self.gym.set_light_parameters(self.sim, 0, gymapi.Vec3(0.4,0.4,0.4), gymapi.Vec3(0.5,0.5,0.5), cam_target) # (sim, light_index, intensity, ambient, direction)
+        self.gym.set_light_parameters(self.sim, 0, gymapi.Vec3(0.4,0.4,0.4), gymapi.Vec3(0.3,0.3,0.3), cam_target) # (sim, light_index, intensity, ambient, direction)
+
+        
+
+
 
     #------------- Callbacks --------------
     def _process_rigid_shape_props(self, props, env_id):
@@ -1413,7 +1425,7 @@ class LeggedRobot(BaseTask):
         if not self.terrain.cfg.measure_heights:
             return
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 4, 4, None, color=(1, 1, 0))
+        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(1, 1, 0))
         i = self.lookat_id
         base_pos = (self.root_states[i, :3]).cpu().numpy()
         heights = self.measured_heights[i].cpu().numpy()
@@ -1424,11 +1436,34 @@ class LeggedRobot(BaseTask):
             z = heights[j]
             sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
             gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose)
+
+    def _draw_patch_outline(self):
+        if not self.terrain.cfg.measure_heights:
+            return
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
+        # sphere_geom = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0.627, 0.125, 0.941))  # purple
+        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(0.502, 0.000, 0.502))  # purple
+        # sphere_geom = gymutil.WireframeSphereGeometry(0.02, 16, 16, None, color=(1, 0.753, 0.796))  # pink
+        i = self.lookat_id
+        base_pos = (self.root_states[i, :3]).cpu().numpy()
+        heights = self.measured_heights[i].cpu().numpy()
+        height_points = quat_apply_yaw(self.base_quat[i].repeat(heights.shape[0]), self.height_points[i]).cpu().numpy()
+        # self.cfg.terrain.measured_points_y_patch
+        
+        for j in range(self.cfg.terrain.measured_points_x_patch.shape[0]):
+            for k in range(self.cfg.terrain.measured_points_y_patch.shape[0]):
+                point = np.array([self.cfg.terrain.measured_points_x_patch[j], self.cfg.terrain.measured_points_y_patch[k],0])
+                point_rot = quat_apply_yaw(self.base_quat[i],torch.from_numpy(point).float().to(self.device)).cpu().numpy()
+                x = point_rot[0] + base_pos[0]
+                y = point_rot[1] + base_pos[1]
+                z = heights[0]
+                sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+                gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose)
     
     def _draw_goals(self):
         sphere_geom = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(1, 0, 0))
         sphere_geom_cur = [gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 1)),gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 0))]
-        sphere_geom_prev = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(1, 1, 1))
+        sphere_geom_prev = gymutil.WireframeSphereGeometry(0.1, 32, 32, None, color=(0, 0, 1))
         
         sphere_geom_reached = gymutil.WireframeSphereGeometry(self.cfg.env.next_goal_threshold, 32, 32, None, color=(0, 1, 0))
         goals = self.terrain_goals[self.terrain_levels[self.lookat_id], self.terrain_types[self.lookat_id]].cpu().numpy()

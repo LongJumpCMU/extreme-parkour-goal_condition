@@ -1325,13 +1325,17 @@ def parkour_plot_terrain(terrain,
         else:
             goals[i] = [dis_x-rand_x//2, mid_y ]
 
-    theta = 0 * np.pi / 180  # positive theta is clockwise
-    factor = 1 #5/2  # default 1
+    # theta = -45 * np.pi / 180  # positive theta is clockwise (turning right)
+    theta = 0 * np.pi / 180  # positive theta is turning left
+
+    factor = 5/3 #5/2  # default 1 (2.5 meters).
     final_dis_x = dis_x - dis_x_max//2 + dis_x_max//factor * np.cos(theta)  #np.random.randint(dis_x_min, dis_x_max)
    
     if final_dis_x > terrain.width:
         final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
-    goals[-1] = [final_dis_x , mid_y - dis_x_max // factor * np.sin(theta)]
+    # goals[-1] = [final_dis_x , mid_y - dis_x_max // factor * np.sin(theta)]   # positive theta is clockwise
+    goals[-1] = [final_dis_x , mid_y + dis_x_max // factor * np.sin(theta)]     # positive theta is anti-clockwise
+
 
     # print("final_dis_x - dis_x + dis_x_max//2: ", final_dis_x - dis_x + dis_x_max//2)   # 50 pixels = 2.5 meters = dis_x_max
     print("last 2 goal distance (in m): ", (np.sqrt((goals[-1][0] - goals[-2][0])**2 + (goals[-1][1] - goals[-2][1])**2)) * terrain.horizontal_scale)
