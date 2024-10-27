@@ -40,6 +40,79 @@ import pyfqmr
 from scipy.ndimage import binary_dilation
 import os
 from PIL import Image
+from collect_data_set_env import prepare_env, all_valid_pnts, check_directory, valid_waypoint, bounds_valid, on_close_wall_valid, is_wall_between_points, is_distance_safe, is_within_height_limit, read_config, scale_env, pos2idx,pos2idx_array, idx2pos, rotate_point, divide_heading
+from pathlib import Path
+import json
+
+base_dir = "../../../../planning-project/results/"
+def create_folder_struct(map_type: str, env_type: str, exp_type: str) -> str:
+    top_dir = os.path.join(base_dir, map_type)
+    mid_dir = os.path.join(top_dir, env_type)
+    exp_dir = os.path.join(mid_dir, exp_type)
+    return top_dir,mid_dir,exp_dir
+    
+    # if not Path(top_dir).exists():
+    #     try:
+    #         os.makedirs(top_dir, exist_ok=True)
+    #         print(f"Directories created: {top_dir}")
+    #     except Exception as e:
+    #         print(f"Failed to create directories: {e}")
+    # else:
+    #     print(f"Directory already exists: {top_dir}")
+    
+    # # mid_dir = os.path.join(top_dir, env_type)
+    # if not Path(mid_dir).exists():
+    #     try:
+    #         os.makedirs(mid_dir, exist_ok=True)
+    #         print(f"Directories created: {mid_dir}")
+    #     except Exception as e:
+    #         print(f"Failed to create directories: {e}")
+    # else:
+    #     print(f"Directory already exists: {mid_dir}")
+    
+    # exp_dir = os.path.join(mid_dir, exp_type)
+    # if not Path(exp_dir).exists():
+    #     try:
+    #         os.makedirs(exp_dir, exist_ok=True)
+    #         print(f"Directories created: {exp_dir}")
+    #     except Exception as e:
+    #         print(f"Failed to create directories: {e}")
+    # else:
+    #     print(f"Directory already exists: {exp_dir}")
+    
+    # return exp_dir
+def float_to_string(value, decimal_places):
+    # Format the float with specified decimal places
+    formatted_str = f"{value:.{decimal_places}f}"
+    
+    # Remove trailing zeros and a trailing decimal point if necessary
+    formatted_str = formatted_str.rstrip('0').rstrip('.') if '.' in formatted_str else formatted_str
+    
+    return formatted_str
+
+def get_exp_name(heuristics: float, analytical: bool, obs_avoid: bool) -> str:
+    exp_name = "obs_avoid" if obs_avoid else "skills"
+    
+    # if heuristics:
+    exp_name += f"_use_heuristic{float_to_string(heuristics,6)}"
+    exp_name += "_analytical_cost" if analytical else "_predicted_cost"
+    
+    # Assuming ground_plan is defined elsewhere; add as a function parameter if needed
+    ground_plan = 0
+    if ground_plan != 0:
+        exp_name += "_obs_avoid_planner"
+    
+    return exp_name
+
+def get_waypoint_file(exp_folder):
+    plan_path = os.path.join(exp_folder, "plan.json")
+    return plan_path
+
+def get_img_file(img_name):
+
+    img_path = os.path.join(base_dir,"../image", img_name)
+    
+    return img_path
 
 
 class Terrain:
@@ -55,6 +128,29 @@ class Terrain:
         self.target = cfg.target
         self.start=cfg.start
         self.two_points=cfg.two_points
+        dataset_config = read_config(self.cfg.planner_config)
+        self.height_map = dataset_config["height_map"]
+        heuristics = dataset_config["epsilon"]
+        analytical = dataset_config["use_analytical"]
+        obs_avoid = dataset_config["obs_avoid_planner"]
+        map_type = dataset_config["map_type"]
+        env_type = dataset_config["predictor_type"]
+
+        
+
+        exp_name = get_exp_name(heuristics,analytical,obs_avoid)
+        self.top_dir,self.mid_dir,self.exp_dir = create_folder_struct(map_type,env_type,exp_name)
+
+        # self.roughness_enable = dataset_config["add_roughness"]
+        # image = Image.open(self.cfg.img_path)
+        # print("img path is: ", dataset_config[self.height_map])
+        
+        image = Image.open(get_img_file(self.height_map))
+        image_array = np.array(image)
+        height_map_img = scale_env(image_array, dataset_config)
+        self.image_array = height_map_img
+        self.env_length = self.image_array.shape[0]*cfg.horizontal_scale
+        self.env_width = self.image_array.shape[1]*cfg.horizontal_scale
 
         cfg.terrain_proportions = np.array(cfg.terrain_proportions) / np.sum(cfg.terrain_proportions)
         self.proportions = [np.sum(cfg.terrain_proportions[:i+1]) for i in range(len(cfg.terrain_proportions))]
@@ -882,6 +978,25 @@ class Terrain:
                                 # invert_env=self.cfg.invert_env,
                                 env_length=self.env_length,
                                 env_width=self.env_width)
+        
+        elif choice < self.proportions[46]:
+            # import ipdb; ipdb.set_trace()
+
+            idx = 47
+            self.starting_goal = parkour_plot_waypoint_terrain(terrain,
+                                   num_stones=1,
+                                   stone_len=0.1+0.3*difficulty,
+                                   hurdle_height_range=[0.1+0.1*difficulty, 0.15+0.15*difficulty],
+                                   pad_height=0,
+                                #    y_range=self.cfg.y_range,
+                                   half_valid_width=[0.45, 1],
+                                #    flat=True,
+                                   obstacle_block=self.cfg.obstacle_block,
+                                   num_goals=self.num_goals,
+                                   height_map=self.image_array,
+                                   exp_dir=self.exp_dir
+                                   )
+        
 
         terrain.idx = idx
         return terrain
@@ -919,6 +1034,9 @@ class Terrain:
             env_origin_z = np.max(terrain.height_field_raw[x1:x2, y1:y2])*terrain.vertical_scale
         self.env_origins[i, j] = [env_origin_x, env_origin_y, env_origin_z]
         self.terrain_type[i, j] = terrain.idx
+        self.goals = np.zeros((self.cfg.num_rows, self.cfg.num_cols, terrain.num_goals, 3))
+        self.planner_goals = np.zeros((self.cfg.num_rows, self.cfg.num_cols, terrain.num_goals))
+        
         self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width]
         self.planner_goals[i, j, :] = terrain.planner_goals
         # self.env_slope_vec[i, j] = terrain.slope_vector
@@ -1491,6 +1609,64 @@ def parkour_plot_terrain(terrain,
     terrain.height_field_raw[:pad_width, :] = pad_height
     terrain.height_field_raw[-pad_width:, :] = pad_height
 
+def parkour_plot_waypoint_terrain(terrain,
+                           platform_len=2.5, 
+                           platform_height=0., 
+                           num_stones=8,
+                           stone_len=0.3,
+                           x_range=[1.5, 2.4],
+                           y_range=[-2, 2],
+                           half_valid_width=[0.4, 0.8],
+                           hurdle_height_range=[0.2, 0.3],
+                           pad_width=0.1,
+                           pad_height=0.5,
+                           flat=False,
+                           obstacle_block=[0,0,0],
+                           num_goals=2,
+                           height_map=None,
+                           exp_dir=None):
+
+    
+    terrain.height_field_raw = ((height_map)/terrain.vertical_scale).astype(np.int16)
+
+    # terrain.planner_goals = np.ones(terrain.goals.shape[0])
+    # terrain.num_goals = terrain.goals.shape[0]
+    ##################################### READ WAYPOINTS FROM PLANNER TXT FILE #####################################
+
+
+    #  read the planner txt file and extractthe waypoints
+    planning_project_path = exp_dir
+    # path_file_name = "waypoints.txt"
+    file_path = get_waypoint_file(exp_dir)
+    # file_path = os.path.join(planning_project_path, path_file_name)
+
+    with open(file_path, "r") as f:
+        content = json.load(f)
+
+    waypoints = []
+    for i in range(len(content)):
+        waypoints.append([content[i]["x"],content[i]["y"] ])
+
+    # list_content = content.split('\n')
+    # waypoints = [list_content[i].split(',') for i in range(len(list_content))]
+    waypoints = (np.array(waypoints)).astype(float)/2*0.05
+
+    #  set terrain goal to be the waypoints
+    waypoints[:, [0, 1]] = waypoints[:, [1, 0]]
+    temp_goal = [waypoints[0][0],waypoints[0][1]]
+    terrain.goals = waypoints[1:-1]
+    terrain.num_goals = terrain.goals.shape[0]
+    terrain.planner_goals = np.ones(terrain.goals.shape[0])
+
+
+    ###########################################################################
+    
+    # goals_original = np.array([[final_dis_x*terrain.horizontal_scale, mid_y*terrain.horizontal_scale]])
+    # print("goal is: ", goals_original), print("temp goal is: ", temp_goal)
+    # terrain.height_field_raw[:, :] = 0
+    # pad edges
+    pad_width = int(pad_width // terrain.horizontal_scale)
+    pad_height = int(pad_height // terrain.vertical_scale)
 def parkour_hurdle_edge_terrain(terrain,
                            platform_len=2.5, 
                            platform_height=0., 

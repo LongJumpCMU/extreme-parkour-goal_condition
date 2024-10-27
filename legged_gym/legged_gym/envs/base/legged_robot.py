@@ -94,6 +94,14 @@ class LeggedRobot(BaseTask):
         """
         self.cfg = cfg
         self.start = cfg.terrain.start
+        self.target = cfg.terrain.target[0:2]
+        self.stationary_itr = torch.zeros((self.cfg.env.num_envs), dtype=torch.int, device=sim_device)
+        self.prev_pos = torch.zeros((self.cfg.env.num_envs, 3), dtype=torch.float, device=sim_device)
+        self.DELTA_THRESHOLD = 0.2 # meters 0.2
+        self.STATIONARY_THRESHOLD = 8 # seconds 8
+
+        # assert(cfg.terrain.start is not None)
+
         # self.policy_test = False
         self.sim_params = sim_params
         self.height_samples = None
@@ -101,6 +109,7 @@ class LeggedRobot(BaseTask):
         self.init_done = False
         self._parse_cfg(self.cfg)
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
+        self.num_agents = self.num_envs
 
         self.resize_transform = torchvision.transforms.Resize((self.cfg.depth.resized[1], self.cfg.depth.resized[0]), 
                                                               interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
@@ -135,6 +144,17 @@ class LeggedRobot(BaseTask):
         self.all_times = torch.zeros((self.terrain_goals.shape[2]))
         self.plot_goal_reached = False
         self.goal_idenfication = 0
+
+        self.planner_goal_reached = torch.zeros(self.num_envs)
+        # print("reset_idx is: ", torch.arange(self.num_envs, device=self.device))
+        self.reset_cnt = 0
+        self.energy_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=sim_device)
+        self.time_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.long, device=sim_device)
+        self.time_prev = torch.zeros((self.cfg.env.num_envs), dtype=torch.long, device=sim_device)
+        # self.time_cost = []
+        self.perform_dict = {"success": [], "energy_cost":[], "time_cost":[]}
+        self.reset_cnt_multi_env = torch.zeros((self.cfg.env.num_envs), dtype=torch.int, device=sim_device)
+        self.success_all = torch.zeros((self.num_envs, ), dtype=torch.bool, device=self.device)
         
         # num1 = 0
         # num2 = 1
@@ -143,7 +163,8 @@ class LeggedRobot(BaseTask):
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.planner_goal_reached = torch.zeros(self.num_envs)
         self.post_physics_step()
-        
+    def get_perform_dict(self):
+        return self.perform_dict
     def weighted_random_choice(self, num1, num2, shape):
         prob1 = self.cfg.domain_rand.standstill_rand
         prob2 = 1-self.cfg.domain_rand.standstill_rand
@@ -160,6 +181,54 @@ class LeggedRobot(BaseTask):
         
         return result
     
+    # def step(self, actions):
+    #     """ Apply actions, simulate, call self.post_physics_step()
+
+    #     Args:
+    #         actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
+    #     """
+    #     actions = self.reindex(actions)
+
+    #     actions.to(self.device)
+    #     self.action_history_buf = torch.cat([self.action_history_buf[:, 1:].clone(), actions[:, None, :].clone()], dim=1)
+    #     if self.cfg.domain_rand.action_delay:
+    #         if self.global_counter % self.cfg.domain_rand.delay_update_global_steps == 0:
+    #             if len(self.cfg.domain_rand.action_curr_step) != 0:
+    #                 self.delay = torch.tensor(self.cfg.domain_rand.action_curr_step.pop(0), device=self.device, dtype=torch.float)
+    #         if self.viewer:
+    #             self.delay = torch.tensor(self.cfg.domain_rand.action_delay_view, device=self.device, dtype=torch.float)
+    #         indices = -self.delay -1
+    #         actions = self.action_history_buf[:, indices.long()] # delay for 1/50=20ms
+
+    #     self.global_counter += 1
+    #     self.total_env_steps_counter += 1
+    #     clip_actions = self.cfg.normalization.clip_actions / self.cfg.control.action_scale
+    #     self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
+    #     self.render()
+
+    #     for _ in range(self.cfg.control.decimation):
+    #         self.torques = self._compute_torques(self.actions).view(self.torques.shape)
+    #         self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+    #         self.gym.simulate(self.sim)
+    #         self.gym.fetch_results(self.sim, True)
+    #         self.gym.refresh_dof_state_tensor(self.sim)
+    #     self.post_physics_step()
+
+    #     clip_obs = self.cfg.normalization.clip_observations
+    #     self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
+    #     if self.privileged_obs_buf is not None:
+    #         self.privileged_obs_buf = torch.clip(self.privileged_obs_buf, -clip_obs, clip_obs)
+    #     self.extras["delta_yaw_ok"] = self.delta_yaw < 0.6
+    #     if self.cfg.depth.use_camera and self.global_counter % self.cfg.depth.update_interval == 0:
+    #         self.extras["depth"] = self.depth_buffer[:, -2]  # have already selected last one
+    #     else:
+    #         self.extras["depth"] = None
+    #     return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+
+    def reset_reset_cnt(self):
+        self.reset_cnt = 0
+        self.reset_cnt_multi_env = torch.zeros((self.cfg.env.num_envs), dtype=torch.int, device=self.sim_device)
+
     def step(self, actions):
         """ Apply actions, simulate, call self.post_physics_step()
 
@@ -183,6 +252,7 @@ class LeggedRobot(BaseTask):
         self.total_env_steps_counter += 1
         clip_actions = self.cfg.normalization.clip_actions / self.cfg.control.action_scale
         self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
+        # import ipdb; ipdb.set_trace()
         self.render()
 
         for _ in range(self.cfg.control.decimation):
@@ -191,7 +261,11 @@ class LeggedRobot(BaseTask):
             self.gym.simulate(self.sim)
             self.gym.fetch_results(self.sim, True)
             self.gym.refresh_dof_state_tensor(self.sim)
-        self.post_physics_step()
+        reset = self.post_physics_step()
+        
+        
+        if reset:
+            self.reset_cnt +=1
 
         clip_obs = self.cfg.normalization.clip_observations
         self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
@@ -202,7 +276,15 @@ class LeggedRobot(BaseTask):
             self.extras["depth"] = self.depth_buffer[:, -2]  # have already selected last one
         else:
             self.extras["depth"] = None
-        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+        
+        mask = self.reset_cnt_multi_env > 0
+
+        # Count the number of True values in the mask
+        # mask = mask.reshape((self.num_regions,self.num_agents))
+        # import ipdb; ipdb.set_trace()
+        reset_env_count = torch.sum(mask)
+
+        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras, reset_env_count
 
     def get_history_observations(self):
         return self.obs_history_buf
@@ -377,12 +459,76 @@ class LeggedRobot(BaseTask):
         plt.show(block=False)
 
         return
+    # def post_physics_step(self):
+    #     """ check terminations, compute observations and rewards
+    #         calls self._post_physics_step_callback() for common computations 
+    #         calls self._draw_debug_vis() if needed
+    #     """
+        
+    #     self.gym.refresh_actor_root_state_tensor(self.sim)
+    #     self.gym.refresh_net_contact_force_tensor(self.sim)
+    #     self.gym.refresh_rigid_body_state_tensor(self.sim)
+    #     self.gym.refresh_force_sensor_tensor(self.sim)
+
+    #     self.episode_length_buf += 1
+    #     self.common_step_counter += 1
+
+    #     # prepare quantities
+    #     # self.root_states[1:10] = torch.zeros_like(self.root_states[1:10])
+    #     # self.root_states[1:10]+=self.root_states[0]
+    #     self.base_quat[:] = self.root_states[:, 3:7]
+    #     self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
+    #     self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
+    #     self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+    #     self.base_lin_acc = (self.root_states[:, 7:10] - self.last_root_vel[:, :3]) / self.dt
+    #     # import ipdb; ipdb.set_trace()
+    #     self.roll, self.pitch, self.yaw = euler_from_quaternion(self.base_quat)
+
+    #     contact = torch.norm(self.contact_forces[:, self.feet_indices], dim=-1) > 2.
+    #     self.contact_filt = torch.logical_or(contact, self.last_contacts) 
+    #     self.last_contacts = contact
+        
+    #     # self._update_jump_schedule()
+    #     self.plot_desired_variables()
+    #     # self.goal_idenfication = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)[self.lookat_id]
+    #     self._update_goals()
+    #     self._post_physics_step_callback()
+    #     # import ipdb; ipdb.set_trace()
+
+    #     # compute observations, rewards, resets, ...
+    #     self.check_termination()
+    #     self.compute_reward()
+    #     env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+    #     self.reset_idx(env_ids)
+
+    #     self.cur_goals = self._gather_cur_goals()
+    #     self.next_goals = self._gather_cur_goals(future=1)
+
+    #     self.update_depth_buffer()
+
+    #     self.compute_observations() # in some cases a simulation step might be required to refresh some obs (for example body positions)
+
+    #     self.last_actions[:] = self.actions[:]
+    #     self.last_dof_vel[:] = self.dof_vel[:]
+    #     self.last_torques[:] = self.torques[:]
+    #     self.last_root_vel[:] = self.root_states[:, 7:13]
+
+    #     if self.viewer and self.enable_viewer_sync and self.debug_viz:
+    #         self.gym.clear_lines(self.viewer)
+    #         self._draw_height_samples()
+    #         self._draw_goals()
+    #         # self._draw_feet()
+    #         if self.cfg.depth.use_camera:
+    #             window_name = "Depth Image"
+    #             cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    #             cv2.imshow("Depth Image", self.depth_buffer[self.lookat_id, -1].cpu().numpy() + 0.5)
+    #             cv2.waitKey(1)
+
     def post_physics_step(self):
         """ check terminations, compute observations and rewards
             calls self._post_physics_step_callback() for common computations 
             calls self._draw_debug_vis() if needed
         """
-        
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
@@ -391,15 +537,36 @@ class LeggedRobot(BaseTask):
         self.episode_length_buf += 1
         self.common_step_counter += 1
 
+
+        # So that we can terminate if robot not moving for STATIONARY_THRESHOLD seconds
+        curr_pos = self.root_states[:, 0:3].clone()
+        
+
+        delta = torch.norm(curr_pos - self.prev_pos, dim=-1)/self.dt
+        print("delta is: ", delta)
+        indices = (delta < self.DELTA_THRESHOLD).nonzero()
+        indices_move = (delta > self.DELTA_THRESHOLD).nonzero()
+
+        # self.episode_length_buf += 1
+        # self.stationary_itr[indices] += 1
+        self.stationary_itr[indices] += 1
+        self.stationary_itr[indices_move] = 0
+
+        # if(delta > self.DELTA_THRESHOLD):
+        #     self.stationary_itr[indices] = 0
+        # else:
+        #     self.stationary_itr[indices] += 1
+        
+        self.prev_pos = curr_pos.clone()
+        # End of stationarity check
+
         # prepare quantities
-        # self.root_states[1:10] = torch.zeros_like(self.root_states[1:10])
-        # self.root_states[1:10]+=self.root_states[0]
         self.base_quat[:] = self.root_states[:, 3:7]
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
         self.base_lin_acc = (self.root_states[:, 7:10] - self.last_root_vel[:, :3]) / self.dt
-        # import ipdb; ipdb.set_trace()
+
         self.roll, self.pitch, self.yaw = euler_from_quaternion(self.base_quat)
 
         contact = torch.norm(self.contact_forces[:, self.feet_indices], dim=-1) > 2.
@@ -407,17 +574,86 @@ class LeggedRobot(BaseTask):
         self.last_contacts = contact
         
         # self._update_jump_schedule()
-        self.plot_desired_variables()
-        # self.goal_idenfication = self.get_next_planner_goal(self.cur_goal_idx, self.env_planner_goals)[self.lookat_id]
         self._update_goals()
+        
         self._post_physics_step_callback()
-        # import ipdb; ipdb.set_trace()
 
         # compute observations, rewards, resets, ...
         self.check_termination()
         self.compute_reward()
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        # print("env_ids length is: ", env_ids.shape[0])
+        # import ipdb; ipdb.set_trace()
+        reset = False
+        # check how many envs has been reset
+        self.reset_cnt_multi_env[env_ids] +=1
+        mask = self.reset_cnt_multi_env > 0
+
+        
+        reset_env_count = torch.sum(mask)
+
+        
+        mask_first = self.reset_cnt_multi_env == 1
+        mask_zero_first = self.reset_cnt_multi_env == 0
+
+        # import ipdb;ipdb.set_trace()
+
+        mask_specified = torch.zeros_like(self.episode_length_buf, dtype=torch.bool)
+        mask_specified[env_ids] = True # the envs that just resetted
+        
+
+        # Combine the masks using logical AND
+        combined_mask = torch.logical_and(mask_first, mask_specified)
+        combined_mask = torch.logical_and(mask_specified, self.cur_goal_idx > 0)
+        prev_mask = torch.logical_and(self.reset_cnt_multi_env == 0, self.cur_goal_idx == 0) # the env that hasn't reset once and is going to starting goal
+        self.time_prev[prev_mask] = self.episode_length_buf[prev_mask]
+        # self.time_cost[combined_mask] = self.episode_length_buf[combined_mask] - self.time_prev[combined_mask]
+        self.success_all[mask_first] |= self.success_buf[mask_first]
+        # have an env_id that is continuous such that it remembers the ones that has been reset: self.reset_cnt_multi_env
+        # make it such that reset_env_count correspounds to specific env_ids
+        mask_reset_count = reset_env_count >= self.num_agents
+        # will make it such that it waits for all env to finish before proceeding for now, will change later
+        # if reset_env_count >= self.num_envs:
+        if torch.all(mask_reset_count):
+            reset = True
+            self.perform_dict["success"] = (self.success_all.cpu()).numpy()
+            # import ipdb;ipdb.set_trace()
+            self.perform_dict["energy_cost"] = self.energy_cost.cpu().numpy() #.append(((torch.sum(torch.stack(self.energy_cost),dim=0)).cpu()).numpy().item())
+            # print("energy cost is: ", self.perform_dict["energy_cost"])
+            print("time_prev is: ", self.time_prev*0.02)
+            self.perform_dict["time_cost"]=((self.time_cost)*self.dt).cpu().numpy()
+            self.energy_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=self.sim_device)
+            self.time_cost = torch.zeros((self.cfg.env.num_envs), dtype=torch.float, device=self.sim_device)
+            specified_indices_tensor = torch.nonzero(mask).squeeze()
+            # specified_indices_tensor.reshape(1,)
+            # import ipdb;ipdb.set_trace()
+            self.reset_idx(env_ids)
+            self.success_all = torch.zeros((self.num_envs, ), dtype=torch.bool, device=self.device)
+            # self.reset_cnt_multi_env = torch.zeros((self.cfg.env.num_envs), dtype=torch.int, device=self.sim_device)
+            
+        else:
+            # print("toque and vel is: ", torch.abs(self.torques), torch.abs(self.dof_vel))
+            # import ipdb; ipdb.set_trace()
+            # only get the values for the non reset ones
+            # specified_indices_tensor = torch.tensor(env_ids)
+            mask_energy = self.reset_cnt_multi_env >0
+            specified_mask = torch.logical_and(~mask_energy, self.cur_goal_idx > 0)
+            # print("current goal index", self.cur_goal_idx)
+            # print("torques and dof_vel:[", torch.sum(torch.abs(self.torques), dim=1),", ", torch.sum(torch.abs(self.dof_vel), dim=1), "]")
+
+            self.energy_cost[specified_mask] += self.dt*(torch.sum(torch.mul(torch.abs(self.torques), torch.abs(self.dof_vel)), dim=1))[specified_mask]
+           
+            self.time_cost[specified_mask] +=1         #  for time, it should be both envid and mask = self.reset_cnt_multi_env == 0, it will get stored and not touched again
+        # print("energy cost is: ", self.energy_cost[:self.num_agents], "and time cost is: ", self.time_cost[:self.num_agents])
+                
+            
+
+        
+        # keep track of self.starti, self.endi, self.iteri, self.waypointi, self.headingi = 0, 0, 0, 0, 0 and pass it to reset_idx
+        # import ipdb;ipdb.set_trace()
         self.reset_idx(env_ids)
+        
+        # import ipdb; ipdb.set_trace()
 
         self.cur_goals = self._gather_cur_goals()
         self.next_goals = self._gather_cur_goals(future=1)
@@ -435,12 +671,13 @@ class LeggedRobot(BaseTask):
             self.gym.clear_lines(self.viewer)
             self._draw_height_samples()
             self._draw_goals()
-            self._draw_feet()
+            # self._draw_feet()
             if self.cfg.depth.use_camera:
                 window_name = "Depth Image"
                 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
                 cv2.imshow("Depth Image", self.depth_buffer[self.lookat_id, -1].cpu().numpy() + 0.5)
                 cv2.waitKey(1)
+        return reset
 
     def reindex_feet(self, vec):
         return vec[:, [1, 0, 3, 2]]
@@ -448,19 +685,46 @@ class LeggedRobot(BaseTask):
     def reindex(self, vec):
         return vec[:, [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]]
 
+    # def check_termination(self):
+    #     """ Check if environments need to be reset
+    #     """
+    #     self.reset_buf = torch.zeros((self.num_envs, ), dtype=torch.bool, device=self.device)
+    #     roll_cutoff = torch.abs(self.roll) > 1.5
+    #     pitch_cutoff = torch.abs(self.pitch) > 1.5
+    #     reach_goal_cutoff = self.cur_goal_idx >= self.cfg.terrain.num_goals
+    #     height_cutoff = self.root_states[:, 2] < -0.25
+
+    #     self.time_out_buf = self.episode_length_buf > self.max_episode_length # no terminal reward for time-outs
+    #     self.time_out_buf |= reach_goal_cutoff
+
+    #     self.reset_buf |= self.time_out_buf
+    #     self.reset_buf |= roll_cutoff
+    #     self.reset_buf |= pitch_cutoff
+    #     self.reset_buf |= height_cutoff
+
     def check_termination(self):
         """ Check if environments need to be reset
         """
         self.reset_buf = torch.zeros((self.num_envs, ), dtype=torch.bool, device=self.device)
+        
         roll_cutoff = torch.abs(self.roll) > 1.5
         pitch_cutoff = torch.abs(self.pitch) > 1.5
         reach_goal_cutoff = self.cur_goal_idx >= self.cfg.terrain.num_goals
         height_cutoff = self.root_states[:, 2] < -0.25
 
+        # Time-out termination condition
         self.time_out_buf = self.episode_length_buf > self.max_episode_length # no terminal reward for time-outs
-        self.time_out_buf |= reach_goal_cutoff
 
-        self.reset_buf |= self.time_out_buf
+        # Stationary termination condition
+        print("stationary condition is: ", self.stationary_itr[0])
+        self.stationary_buf = self.stationary_itr[0] * self.dt  > self.STATIONARY_THRESHOLD
+        # self.reset_buf |= self.stationary_buf
+        self.success_buf = self.reset_buf | reach_goal_cutoff
+        self.reset_buf |= self.stationary_buf
+
+        self.reset_buf |= self.time_out_buf # Get time as self.max_episode_length*self.dt
+
+        self.reset_buf |= reach_goal_cutoff
         self.reset_buf |= roll_cutoff
         self.reset_buf |= pitch_cutoff
         self.reset_buf |= height_cutoff
@@ -475,8 +739,8 @@ class LeggedRobot(BaseTask):
         Args:
             env_ids (list[int]): List of environment ids which must be reset
         """
-        if len(env_ids) == 0:
-            return
+        # if len(env_ids) == 0:
+        #     return
         # update curriculum
         if self.cfg.terrain.curriculum:
             self._update_terrain_curriculum(env_ids)
@@ -926,7 +1190,7 @@ class LeggedRobot(BaseTask):
         Args:
             env_ids (List[int]): Environemnt ids
         """
-        self.dof_pos[env_ids] = self.default_dof_pos + torch_rand_float(0., 0.9, (len(env_ids), self.num_dof), device=self.device)
+        self.dof_pos[env_ids] = self.default_dof_pos + torch_rand_float(0., 0.0, (1, self.num_dof), device=self.device)
         self.dof_vel[env_ids] = 0.
 
         env_ids_int32 = env_ids.to(dtype=torch.int32)
@@ -944,19 +1208,25 @@ class LeggedRobot(BaseTask):
         if self.custom_origins and not self.cfg.terrain.policy_test:
             self.root_states[env_ids] = self.base_init_state
             
-            self.root_states[env_ids, :3] += self.env_origins[env_ids]
-            if self.cfg.env.randomize_start_pos:
-                self.root_states[env_ids, :2] += torch_rand_float(-0.3, 0.3, (len(env_ids), 2), device=self.device) # xy position within 1m of the center
-            if self.cfg.env.randomize_start_yaw:
-                rand_yaw = self.cfg.env.rand_yaw_range*torch_rand_float(-1, 1, (len(env_ids), 1), device=self.device).squeeze(1)
-                if self.cfg.env.randomize_start_pitch:
-                    rand_pitch = self.cfg.env.rand_pitch_range*torch_rand_float(-1, 1, (len(env_ids), 1), device=self.device).squeeze(1)
-                else:
-                    rand_pitch = torch.zeros(len(env_ids), device=self.device)
-                quat = quat_from_euler_xyz(0*rand_yaw, rand_pitch, rand_yaw) 
-                self.root_states[env_ids, 3:7] = quat[:, :]  
-            if self.cfg.env.randomize_start_y:
-                self.root_states[env_ids, 1] += self.cfg.env.rand_y_range * torch_rand_float(-1, 1, (len(env_ids), 1), device=self.device).squeeze(1)
+            # self.root_states[env_ids, :3] += self.env_origins[env_ids]
+            self.root_states[env_ids, 0] = self.start[0]
+            self.root_states[env_ids, 1] = self.start[1]
+            rand_pitch = torch.zeros(len(env_ids), 1, device=self.device).squeeze(1)
+            yaw_start = self.compute_yaw_single(torch.tensor(self.target).to(self.device), torch.tensor(self.start).to(self.device))
+            # import ipdb; ipdb.set_trace()
+            rand_yaw = torch.zeros(len(env_ids), 1, device=self.device).squeeze(1)+wrap_to_pi(yaw_start.float()) #wrapped yaw
+            quat = quat_from_euler_xyz(0*rand_yaw, rand_pitch, rand_yaw) 
+            self.root_states[env_ids, 3:7] = quat[:, :] 
+            # if self.cfg.env.randomize_start_yaw:
+            #     rand_yaw = self.cfg.env.rand_yaw_range*torch_rand_float(-1, 1, (len(env_ids), 1), device=self.device).squeeze(1)
+            #     if self.cfg.env.randomize_start_pitch:
+            #         rand_pitch = self.cfg.env.rand_pitch_range*torch_rand_float(-1, 1, (len(env_ids), 1), device=self.device).squeeze(1)
+            #     else:
+            #         rand_pitch = torch.zeros(len(env_ids), device=self.device)
+            #     quat = quat_from_euler_xyz(0*rand_yaw, rand_pitch, rand_yaw) 
+            #     self.root_states[env_ids, 3:7] = quat[:, :]  
+            # if self.cfg.env.randomize_start_y:
+            #     self.root_states[env_ids, 1] += self.cfg.env.rand_y_range * torch_rand_float(-1, 1, (len(env_ids), 1), device=self.device).squeeze(1)
             
         elif not self.cfg.terrain.policy_test:
             self.root_states[env_ids] = self.base_init_state
@@ -990,7 +1260,10 @@ class LeggedRobot(BaseTask):
         self.gym.set_actor_root_state_tensor_indexed(self.sim,
                                                      gymtorch.unwrap_tensor(self.root_states),
                                                      gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
-
+    def set_run_conditions(self, start, target):
+        self.start = start
+        self.target = target
+        self.reset_idx(torch.arange(self.num_envs, device=self.device))
     def _push_robots(self):
         """ Random pushes the robots. Emulates an impulse by setting a randomized base velocity. 
         """
@@ -1026,7 +1299,7 @@ class LeggedRobot(BaseTask):
         temp = self.terrain_goals[self.terrain_levels, self.terrain_types]
 
         last_col = temp[:, -1].unsqueeze(1)
-        
+       
         self.env_goals[:] = torch.cat((temp, last_col.repeat(1, self.cfg.env.num_future_goal_obs, 1)), dim=1)[:]
         
         self.cur_goals = self._gather_cur_goals()

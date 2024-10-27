@@ -47,8 +47,16 @@ import matplotlib.pyplot as plt
 from time import time, sleep
 from legged_gym.utils import webviewer
 from collect_data_set_env import prepare_env, all_valid_pnts, check_directory, valid_waypoint, bounds_valid, on_close_wall_valid, is_wall_between_points, is_distance_safe, is_within_height_limit, read_config, scale_env, pos2idx,pos2idx_array, idx2pos, rotate_point, divide_heading
+import json
+import csv
+from pathlib import Path
 
 
+def read_planner_config(json_path):
+    with open(json_path, 'r') as file:
+        # Load the JSON data into a Python list
+        config = json.load(file)
+    return config
 def get_load_path(root, load_run=-1, checkpoint=-1, model_name_include="model"):
     if checkpoint==-1:
         models = [file for file in os.listdir(root) if model_name_include in file]
@@ -56,6 +64,135 @@ def get_load_path(root, load_run=-1, checkpoint=-1, model_name_include="model"):
         model = models[-1]
         checkpoint = model.split("_")[-1].split(".")[0]
     return model, checkpoint
+
+
+base_dir = "../../../../planning-project/results/"
+
+def create_gym_run_log(exp_dir) -> str:
+    top_dir = os.path.join(base_dir, "gym_log.csv")
+    
+    if not Path(top_dir).exists():
+        try:
+            os.makedirs(top_dir, exist_ok=True)
+            print(f"Directories created: {top_dir}")
+        except Exception as e:
+            print(f"Failed to create directories: {e}")
+    else:
+        print(f"Directory already exists: {top_dir}")
+    
+    mid_dir = os.path.join(top_dir, env_type)
+    if not Path(mid_dir).exists():
+        try:
+            os.makedirs(mid_dir, exist_ok=True)
+            print(f"Directories created: {mid_dir}")
+        except Exception as e:
+            print(f"Failed to create directories: {e}")
+    else:
+        print(f"Directory already exists: {mid_dir}")
+    
+    exp_dir = os.path.join(mid_dir, exp_type)
+    if not Path(exp_dir).exists():
+        try:
+            os.makedirs(exp_dir, exist_ok=True)
+            print(f"Directories created: {exp_dir}")
+        except Exception as e:
+            print(f"Failed to create directories: {e}")
+    else:
+        print(f"Directory already exists: {exp_dir}")
+    
+    return exp_dir
+
+
+def log_data(data, data_file_name,exp_dir):
+    # import ipdb; ipdb.set_trace()
+    filepath = os.path.join(exp_dir, data_file_name)
+    if os.path.isfile(filepath):
+            with open(filepath, "a", newline='') as f:
+                writer = csv.writer(f)
+                data_row = [data['success'], data['energy_cost'], data['time_cost']]
+                writer.writerow(data_row)
+                # f.write(data)
+    else:
+        with open(filepath, "w", newline='') as f:
+            writer = csv.writer(f)
+            header = ['success', 'energy_cost', 'time_cost']
+            writer.writerow(header)
+            data_row = [data['success'], data['energy_cost'], data['time_cost']]
+            writer.writerow(data_row)
+
+
+
+
+def create_folder_struct(map_type: str, env_type: str, exp_type: str) -> str:
+    top_dir = os.path.join(base_dir, map_type)
+    mid_dir = os.path.join(top_dir, env_type)
+    exp_dir = os.path.join(mid_dir, exp_type)
+    return top_dir,mid_dir,exp_dir
+
+def float_to_string(value, decimal_places):
+    # Format the float with specified decimal places
+    formatted_str = f"{value:.{decimal_places}f}"
+    
+    # Remove trailing zeros and a trailing decimal point if necessary
+    formatted_str = formatted_str.rstrip('0').rstrip('.') if '.' in formatted_str else formatted_str
+    
+    return formatted_str
+
+def get_exp_name(heuristics: float, analytical: bool, obs_avoid: bool) -> str:
+    exp_name = "obs_avoid" if obs_avoid else "skills"
+    
+    # if heuristics:
+    exp_name += f"_use_heuristic{float_to_string(heuristics,6)}"
+    exp_name += "_analytical_cost" if analytical else "_predicted_cost"
+    
+    # Assuming ground_plan is defined elsewhere; add as a function parameter if needed
+    ground_plan = 0
+    if ground_plan != 0:
+        exp_name += "_obs_avoid_planner"
+    
+    return exp_name
+
+def get_waypoint_file(exp_folder):
+    plan_path = os.path.join(exp_folder, "plan.json")
+    return plan_path
+
+def get_img_file(img_name):
+
+    img_path = os.path.join(base_dir,"../image", img_name)
+    
+    return img_path
+
+def gat_num_goals(planner_config):
+    dataset_config = read_config(planner_config)
+    heuristics = dataset_config["epsilon"]
+    analytical = dataset_config["use_analytical"]
+    obs_avoid = dataset_config["obs_avoid_planner"]
+    map_type = dataset_config["map_type"]
+    env_type = dataset_config["predictor_type"]
+
+    
+
+    exp_name = get_exp_name(heuristics,analytical,obs_avoid)
+    top_dir,mid_dir,exp_dir = create_folder_struct(map_type,env_type,exp_name)
+    file_path = get_waypoint_file(exp_dir)
+    # file_path = os.path.join(planning_project_path, path_file_name)
+
+    with open(file_path, "r") as f:
+        content = json.load(f)
+
+    waypoints = []
+    for i in range(len(content)):
+        waypoints.append([content[i]["x"],content[i]["y"] ])
+
+    # list_content = content.split('\n')
+    # waypoints = [list_content[i].split(',') for i in range(len(list_content))]
+    waypoints = (np.array(waypoints)).astype(float)/2*0.05
+
+    #  set terrain goal to be the waypoints
+    waypoints[:, [0, 1]] = waypoints[:, [1, 0]]
+    temp_goal = [waypoints[0][0],waypoints[0][1]]
+    goals = waypoints[1:-1]
+    return goals.shape[0],waypoints[0],goals[0],exp_dir
 
 def play(args):
     if args.web:
@@ -66,7 +203,7 @@ def play(args):
 
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     
-    scandots_x,scandots_y,dataset_config, height_map, patchx, patchy = prepare_env(args.config_path)
+    # scandots_x,scandots_y,dataset_config, height_map, patchx, patchy = prepare_env(args.config_path)
 
     # override some parameters for testing
     if args.nodelay:
@@ -118,19 +255,21 @@ def play(args):
                                     "gap_distracted_gap": 0.0,
                                     "hurdle_distracted_hurdle": 0.0,
                                     "hurdle_distracted_gap": 0.0,
-                                    "hurdle_distracted_wall": 0.0,
+                                    "hurdle_distracfsted_wall": 0.0,
                                     "gap_distracted_wall": 0.0,
                                     
                                     "plot_terrain": 0.0,
                                     "policy_test": 0.0,
-                                    "img_creation": 0.2,
+                                    "img_creation": 0.0,
                                     "energy_terrain": 0.0,
                                     "node_gen_test": 0.0,
+                                    "plot_waypoints":0.2
                                     }
                                     
 
-    if args.plot_mode != 0:
-        env_cfg.terrain.num_goals = args.plot_mode
+    planner_config = read_planner_config(args.planner_config)
+    # if args.plot_mode != 0:
+    #     env_cfg.terrain.num_goals = args.plot_mode
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = False
     env_cfg.terrain.max_difficulty = True
@@ -142,13 +281,22 @@ def play(args):
     env_cfg.domain_rand.push_interval_s = 6
     env_cfg.domain_rand.randomize_base_mass = False
     env_cfg.domain_rand.randomize_base_com = False
+    num_goals, start, target,exp_dir= gat_num_goals(args.planner_config)
+    env_cfg.terrain.num_goals = num_goals
+    
+
+    # if args.play_waypoints:
+    #     env_cfg.terrain.img_path = planner_config["height_map"]
+    # else:
+    #     env_cfg.terrain.img_path = dataset_config["img_path"]
 
     depth_latent_buffer = []
     # prepare environment
     env: LeggedRobot
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
+    env.set_run_conditions(start, target)
     obs = env.get_observations()
-    env.policy_test = dataset_config["policy_test"]
+    # env.policy_test = dataset_config["policy_test"]
     if args.web:
         web_viewer.setup(env)
 
@@ -202,7 +350,15 @@ def play(args):
             else:
                 actions = policy(obs.detach(), hist_encoding=True, scandots_latent=depth_latent)
             
-        obs, _, rews, dones, infos = env.step(actions.detach())
+        obs, _, rews, dones, infos, resetcnt = env.step(actions.detach())
+        mask_reset_count = resetcnt >= args.num_envs
+        if torch.all(mask_reset_count):
+            # import ipdb;ipdb.set_trace()
+            env.reset_reset_cnt()
+            perform_dict = env.get_perform_dict()
+            print("perform_dict is: ", perform_dict, "resetcnt is: ", resetcnt, " terrain goal is: ", env.terrain_goals)
+            log_data(perform_dict, "legged_gym_result.csv",exp_dir)
+
         # import ipdb; ipdb.set_trace()
         if args.web:
             web_viewer.render(fetch_results=True,

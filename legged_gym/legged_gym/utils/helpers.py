@@ -172,6 +172,11 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
         env_cfg.terrain.plot_goal_num = args.plot_mode
         env_cfg.terrain.policy_test = args.policy_test
         env_cfg.terrain.two_points = args.two_points
+        env_cfg.terrain.play_waypoints = args.play_waypoints
+        env_cfg.terrain.planner_config = args.planner_config
+
+
+        
 
     if cfg_train is not None:
         if args.seed is not None:
@@ -250,12 +255,15 @@ def get_args():
         {"name": "--num_obs", "type": int, "default": 10, "help": "obstacle number choice"},
         {"name": "--obstacle_block", "nargs": '+', "type": float, "default": [1.5,3,0.25], "help": "[l*w*h] of the block obstacle"},
         {"name": "--img_path", "type": str, "default": "../../../../planning-project/data/png_envs/maze.png", "help": "path of the png file we read"},
-        {"name": "--config_path", "type": str, "default": "data_collection_configs/default_configs.json", "help": "the path for the config file"},
+        {"name": "--config_path", "type": str, "default": "data_collection_configs/default_configs_block_going_down.json", "help": "the path for the config file"},
         {"name": "--plot_mode", "type": int, "default": 0, "help": "whether to plot or not"},
         {"name": "--policy_test", "action": "store_true", "default": False, "help": "save data for evaluation"},
         {"name": "--two_points", "action": "store_true", "default": False, "help": "save data for evaluation"},
         {"name": "--num_agents", "type": int, "default": 10, "help": "num of agents per region"},
         {"name": "--num_regions", "type": int, "default": 10, "help": "num of regions to collect data"},
+        {"name": "--planner_config", "type": str, "default": "../../../../planning-project/data/configs/automation_setting_example_long_horizon.json", "help": "path to planner config json file"},
+        {"name": "--play_waypoints", "action": "store_true", "default": False, "help": "whether to play waypoints or dataset_collection"}
+        
 
 
 
