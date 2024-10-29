@@ -128,7 +128,8 @@ def play(args):
                                     "node_gen_test": 0.0,
                                     "easy_energy_env": 0.0,
                                     "easy_time_env": 0.0,
-                                    "long_horizon_time_env": 0.2,
+                                    "long_horizon_time_env": 0.0,
+                                    "long_horizon_time_env2": 0.2,
                                     }
                                     
 
