@@ -44,7 +44,7 @@ from collect_data_set_env import prepare_env, all_valid_pnts, check_directory, v
 from pathlib import Path
 import json
 
-base_dir = "../../../../planning-project/results/"
+base_dir = "../../../../../LongJump/planning-project/results/"
 def create_folder_struct(map_type: str, env_type: str, exp_type: str) -> str:
     top_dir = os.path.join(base_dir, map_type)
     mid_dir = os.path.join(top_dir, env_type)
@@ -90,15 +90,15 @@ def float_to_string(value, decimal_places):
     
     return formatted_str
 
-def get_exp_name(heuristics: float, analytical: bool, obs_avoid: bool) -> str:
-    exp_name = "obs_avoid" if obs_avoid else "skills"
+def get_exp_name(heuristics: float, analytical: bool, ground_plan: int) -> str:
+    exp_name = "skills"
     
     # if heuristics:
     exp_name += f"_use_heuristic{float_to_string(heuristics,6)}"
     exp_name += "_analytical_cost" if analytical else "_predicted_cost"
     
     # Assuming ground_plan is defined elsewhere; add as a function parameter if needed
-    ground_plan = 0
+    # ground_plan = 0
     if ground_plan != 0:
         exp_name += "_obs_avoid_planner"
     
@@ -132,7 +132,7 @@ class Terrain:
         self.height_map = dataset_config["height_map"]
         heuristics = dataset_config["epsilon"]
         analytical = dataset_config["use_analytical"]
-        obs_avoid = dataset_config["obs_avoid_planner"]
+        obs_avoid = dataset_config["ground_plan"]
         map_type = dataset_config["map_type"]
         env_type = dataset_config["predictor_type"]
 
@@ -1654,7 +1654,7 @@ def parkour_plot_waypoint_terrain(terrain,
     #  set terrain goal to be the waypoints
     waypoints[:, [0, 1]] = waypoints[:, [1, 0]]
     temp_goal = [waypoints[0][0],waypoints[0][1]]
-    terrain.goals = waypoints[1:-1]
+    terrain.goals = waypoints[1:waypoints.shape[0]]
     terrain.num_goals = terrain.goals.shape[0]
     terrain.planner_goals = np.ones(terrain.goals.shape[0])
 

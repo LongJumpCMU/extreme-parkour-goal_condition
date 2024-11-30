@@ -66,7 +66,7 @@ def get_load_path(root, load_run=-1, checkpoint=-1, model_name_include="model"):
     return model, checkpoint
 
 
-base_dir = "../../../../planning-project/results/"
+base_dir = "../../../../../LongJump/planning-project/results/"
 
 def create_gym_run_log(exp_dir) -> str:
     top_dir = os.path.join(base_dir, "gym_log.csv")
@@ -138,15 +138,15 @@ def float_to_string(value, decimal_places):
     
     return formatted_str
 
-def get_exp_name(heuristics: float, analytical: bool, obs_avoid: bool) -> str:
-    exp_name = "obs_avoid" if obs_avoid else "skills"
+def get_exp_name(heuristics: float, analytical: bool, ground_plan: int) -> str:
+    exp_name = "skills"
     
     # if heuristics:
     exp_name += f"_use_heuristic{float_to_string(heuristics,6)}"
     exp_name += "_analytical_cost" if analytical else "_predicted_cost"
     
     # Assuming ground_plan is defined elsewhere; add as a function parameter if needed
-    ground_plan = 0
+    # ground_plan = 0
     if ground_plan != 0:
         exp_name += "_obs_avoid_planner"
     
@@ -166,7 +166,7 @@ def gat_num_goals(planner_config):
     dataset_config = read_config(planner_config)
     heuristics = dataset_config["epsilon"]
     analytical = dataset_config["use_analytical"]
-    obs_avoid = dataset_config["obs_avoid_planner"]
+    obs_avoid = dataset_config["ground_plan"]
     map_type = dataset_config["map_type"]
     env_type = dataset_config["predictor_type"]
 
@@ -192,7 +192,7 @@ def gat_num_goals(planner_config):
     waypoints[:, [0, 1]] = waypoints[:, [1, 0]]
     temp_goal = [waypoints[0][0],waypoints[0][1]]
     goals = waypoints[1:-1]
-    return goals.shape[0],waypoints[0],goals[0],exp_dir
+    return goals.shape[0]+1,waypoints[0],goals[0],exp_dir
 
 def play(args):
     if args.web:

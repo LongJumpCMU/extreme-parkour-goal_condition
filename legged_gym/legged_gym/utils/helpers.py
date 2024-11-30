@@ -261,7 +261,7 @@ def get_args():
         {"name": "--two_points", "action": "store_true", "default": False, "help": "save data for evaluation"},
         {"name": "--num_agents", "type": int, "default": 10, "help": "num of agents per region"},
         {"name": "--num_regions", "type": int, "default": 10, "help": "num of regions to collect data"},
-        {"name": "--planner_config", "type": str, "default": "../../../../planning-project/data/configs/automation_setting_example_long_horizon.json", "help": "path to planner config json file"},
+        {"name": "--planner_config", "type": str, "default": "../../../../../LongJump/planning-project/data/configs/automation_setting_example_long_horizon.json", "help": "path to planner config json file"},
         {"name": "--play_waypoints", "action": "store_true", "default": False, "help": "whether to play waypoints or dataset_collection"}
         
 
